@@ -15,11 +15,12 @@ import java.util.List;
 
 public class Nodes {
    private static Nodes instance = null;
-   private final List<String> nodi;
+   private final List<String> nodiRegistrati;
+   private final List<String> nodiInseriti;
    //private final  HashMap<String,String> nodi;
    private Nodes() {
-       nodi = new ArrayList<>();
-
+       nodiRegistrati = new ArrayList<>();
+       nodiInseriti = new ArrayList<>();
       // Exists only to defeat instantiation.
    }
    public static Nodes getInstance() {
@@ -29,18 +30,31 @@ public class Nodes {
       return instance;
    }
 
- public synchronized void addNode(String[] nodo){
+ public synchronized void registraNodo(String[] nodo){
             
-            nodi.add(nodo[0]+"-"+nodo[1]+"-"+nodo[2]);
+            nodiRegistrati.add(nodo[0]+"-"+nodo[1]+"-"+nodo[2]);
+    }
+ 
+  public synchronized void inserisciNodo(String[] nodo){
+            
+            nodiInseriti.add(nodo[0]+"-"+nodo[1]+"-"+nodo[2]);
     }
     
- public List<String> getList(){
-     return this.nodi;
+ public List<String> nodiRegistrati(){
+     return this.nodiRegistrati;
  }
  
-   @Override
- public String toString(){
-     return nodi.toString();
+  public List<String> nodiInseriti(){
+     return this.nodiInseriti;
+ }
+ 
+
+ public String toStringRegistrati(){
+     return nodiRegistrati.toString();
+ }
+ 
+  public String toStringInseriti(){
+     return nodiInseriti.toString();
  }
  
  

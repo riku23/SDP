@@ -15,6 +15,7 @@ import java.net.Socket;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -30,8 +31,9 @@ import org.glassfish.jersey.client.ClientConfig;
  * @author Tozio23
  */
 public class Nodo {
+    private List<String> pending;
     static Token token;
-    private String neighbour;
+    private String next;
     private String nodeType;
     private String id;
     private int listeningPort;
@@ -71,30 +73,29 @@ public class Nodo {
         } catch (NumberFormatException e) {
             System.out.println("PORTA NON VALIDA");
         }
-
+        this.pending = new ArrayList<>();
     }
 
     public static void main(String[] args) throws IOException {
-        
+
+
         BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
         Nodo n = new Nodo(args[0], args[1], args[2]);
-        registraNodo(n);
         System.out.println("ID NODO: " + n.getId());
         System.out.println("TIPOLOGIA NODO:" + n.getType());
         ServerSocket serverSocket = new ServerSocket(n.getListeningPort());
         System.out.println("PORTA DI ASCOLTO: "+serverSocket.getLocalPort());
-        
         ThreadServer threadNodoServer = new ThreadServer(serverSocket, "server", n);
         threadNodoServer.start();
+        registraNodo(n);
+
         
 
         
         
         //String command = stdin.readLine();
         //if (command.equals("START")){
-          Gson gson = new Gson();
-          String tokenString = gson.toJson(token);  
-          n.inviaMessaggio("token:::"+tokenString, n.getNeighbour());
+
           while(true){
               String command = stdin.readLine();
               if(command.equals("EXIT")){
@@ -112,21 +113,31 @@ public class Nodo {
         Client client = ClientBuilder.newClient(config);
         WebTarget target = client.target(getBaseURI());
         Gson gson = new Gson();
-        answer = target.path("rest").path("nodes").path("enter").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getId()+"-localhost-"+n.getListeningPort()), MediaType.APPLICATION_JSON));
+        answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getId()+"-localhost-"+n.getListeningPort()), MediaType.APPLICATION_JSON));
         if (answer.getStatus() == 202) {
             ArrayList nodesList = gson.fromJson(answer.readEntity(String.class), ArrayList.class);
             System.out.println(nodesList);
-            if(nodesList.size()==1 && nodesList.contains(n.getId()+"-localhost-"+n.getListeningPort())){
+            if(nodesList.isEmpty()){
                 n.SetNeighbour(""+n.getListeningPort());
                 System.out.println("CREO IL TOKEN");
-                token = new Token();
+                token = Token.getInstance();
+                answer = target.path("rest").path("nodes").path("enter").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getId()+"-localhost-"+n.getListeningPort()), MediaType.APPLICATION_JSON));
+                String tokenString = gson.toJson(token);  
+                n.inviaMessaggio("token:::"+tokenString, n.getNeighbour());
             }else{
-                
+                /*
                 String[] firstNodeInfo = nodesList.get(0).toString().split("-");
                 String[] lastNodeInfo = nodesList.get(nodesList.size()-2).toString().split("-");
                 n.SetNeighbour(firstNodeInfo[2]);
-                n.inviaMessaggio("nextChange-"+n.getListeningPort(), lastNodeInfo[2]);
-            }
+                */
+                int randPick = (int)(Math.random() * (nodesList.size()-1));
+                System.out.println("RANDOM PICK: "+ randPick);
+                System.out.println(nodesList.get(randPick));
+                String[] nodeInfo = nodesList.get(randPick).toString().split("-");
+                System.out.println(nodeInfo[2]);
+                n.inviaMessaggio("insert-"+n.getListeningPort(), nodeInfo[2]);
+                
+                }
             
         } else {
             System.out.println("REGISTRAZIONE FALLITA");
@@ -165,7 +176,7 @@ public class Nodo {
 
     
     public String getNeighbour(){
-        return this.neighbour;
+        return this.next;
     }
     
     public BufferImplementation getBuffer(){
@@ -173,6 +184,17 @@ public class Nodo {
     }
     
     public synchronized void SetNeighbour(String neighbour){
-        this.neighbour = neighbour;
+        this.next = neighbour;
+    }
+    
+    public synchronized void addPending(String s){
+        pending.add(s);
+    }
+    
+    public synchronized void removePending(String s){
+        pending.remove(s);
+    }
+    public List<String> getPending(){
+        return this.pending;
     }
 }

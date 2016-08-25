@@ -16,16 +16,25 @@ import java.util.List;
  */
 
 public class Token {
-
+   private static Token instance = null;
    private int misurazioni;
    private List<Measurement> tokenBuffer;
    
-   public Token() {
+   private Token() {
        tokenBuffer = new ArrayList<Measurement>();
 
       // Exists only to defeat instantiation.
    }
+   
+    public static Token getInstance()
+  {
+    if (instance == null)
+    {
+      instance = new Token();
+    }
 
+    return instance;
+  }
 
  public synchronized void addMisurazione(Measurement e){
             

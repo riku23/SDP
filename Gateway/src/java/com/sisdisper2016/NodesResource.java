@@ -40,32 +40,46 @@ public class NodesResource {
 
     
     
-    @Path("enter")
+    @Path("register")
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response postTest(String nodoString){
+    public Response postRegister(String nodoString){
         Gson gson = new Gson();
            String nodo = gson.fromJson(nodoString, String.class);
             System.out.println(nodo);
             String[] nodoInfo = nodo.split("-");
-        if(Nodes.getInstance().getList().contains(nodo)){
+        if(Nodes.getInstance().nodiRegistrati().contains(nodo)){
             
             return Response.status(Response.Status.NOT_ACCEPTABLE).build();
         //return Response.ok(new UserInfo("OK")).build();
         }else{
             
-            Nodes.getInstance().addNode(nodoInfo);
+            Nodes.getInstance().registraNodo(nodoInfo);
             
-            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().getList())).build();
+            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();
         }
     }
+    
+        @Path("enter")
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response postEnter(String nodoString){
+        Gson gson = new Gson();
+           String nodo = gson.fromJson(nodoString, String.class);
+            System.out.println(nodo);
+            String[] nodoInfo = nodo.split("-");
+            Nodes.getInstance().inserisciNodo(nodoInfo);
+            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();  
+    }
+    
     
     @Path("token")
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response tokenTest(String tokenString){
+    public Response postToken(String tokenString){
         Gson gson = new Gson();
         Token token = gson.fromJson(tokenString, Token.class);
         if(!GatewayBuffer.getInstance().addMisurazioni(token.getBuffer())){
