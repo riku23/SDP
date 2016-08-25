@@ -10,11 +10,8 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -33,9 +30,9 @@ import org.glassfish.jersey.client.ClientConfig;
  */
 public class ThreadNodo extends Thread {
 
-    private Nodo nodo;
-    private String threadType;
-    private Socket estabSocket;
+    private final Nodo nodo;
+    private final String threadType;
+    private final Socket estabSocket;
     private String clientSentence;
     private String capitalizedSentence;
     private final static String MESSAGE1 = "ciao";
@@ -55,20 +52,25 @@ public class ThreadNodo extends Thread {
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader((estabSocket.getInputStream())));
             DataOutputStream outToClient = new DataOutputStream(estabSocket.getOutputStream());
             clientSentence = inFromClient.readLine();
-            Thread.sleep(1500);
+            Gson gson = new Gson();
+            String[] splitMessage = clientSentence.split(":::");
+            Thread.sleep(3000);
             if (clientSentence.contains("token")) {
+                if (nodo.isExiting()) {
+                    System.out.println("NO MARIA IO ESCO: "+ splitMessage[1]);
+                    esciRete(""+splitMessage[1]);
+                }
                 System.out.println(nodo.getPending());
-                if(!nodo.getPending().isEmpty()){
+                if (!nodo.getPending().isEmpty()) {
                     System.out.println("INSERISCO NODI");
-                    for(int i=0; i<nodo.getPending().size(); i++){
+                    for (int i = 0; i < nodo.getPending().size(); i++) {
                         InserisciNodo(nodo.getPending().get(i));
                         nodo.removePending(nodo.getPending().get(i));
                     }
-                    
+
                 }
-                Gson gson = new Gson();
-                String[] splitMessage = clientSentence.split(":::");
-                Token token = gson.fromJson(splitMessage[1], Token.class);
+                
+                Token token = gson.fromJson(splitMessage[2], Token.class);
 
                 if (!nodo.getBuffer().isEmpty()) {
                     if ((nodo.getBuffer().getSize() + token.getMisurazioni()) > 15) {
@@ -83,27 +85,31 @@ public class ThreadNodo extends Thread {
                     System.out.println("BUFFER NODO VUOTO");
                 }
 
-                nodo.inviaMessaggio("token:::" + gson.toJson(token), nodo.getNeighbour());
-            } if (clientSentence.contains("insert")) {
-                String[] splitString = clientSentence.split("-");
-                nodo.addPending(splitString[1]);
-            }if(clientSentence.contains("changeNext")){
-                String[] splitString = clientSentence.split("-");
-                
-                nodo.SetNeighbour(splitString[1]);
+                nodo.inviaMessaggio("token:::"+nodo.getListeningPort()+":::" + gson.toJson(token), nodo.getNeighbour());
             }
-        } catch (IOException ex) {
-            Logger.getLogger(ThreadNodo.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (InterruptedException ex) {
+            if (clientSentence.contains("insert")) {
+                String[] splitString = clientSentence.split(":::");
+                nodo.addPending(splitString[2]);
+            }
+            if (clientSentence.contains("changeNext")) {
+                String[] splitString = clientSentence.split(":::");
+
+                nodo.SetNeighbour(splitString[2]);
+            }
+        } catch (IOException | InterruptedException ex) {
             Logger.getLogger(ThreadNodo.class.getName()).log(Level.SEVERE, null, ex);
         }
 
     }
 
+    public synchronized void esciRete(String prev) throws IOException{
+        nodo.inviaMessaggio("changeNext:::"+nodo.getListeningPort()+":::"+nodo.getNeighbour(), prev);
+        nodo.setExiting(false);
+    }
     public synchronized void InserisciNodo(String newNodo) throws IOException {
-        nodo.inviaMessaggio("changeNext-"+nodo.getNeighbour(), newNodo);    
+        nodo.inviaMessaggio("changeNext:::"+nodo.getListeningPort()+":::" + nodo.getNeighbour(), newNodo);
         nodo.SetNeighbour(newNodo);
-            
+
     }
 
     public synchronized void InviaMisurazioniToken(Token t) {

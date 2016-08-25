@@ -31,6 +31,7 @@ import org.glassfish.jersey.client.ClientConfig;
  * @author Tozio23
  */
 public class Nodo {
+        private static boolean exiting;
     private List<String> pending;
     static Token token;
     private String next;
@@ -74,6 +75,7 @@ public class Nodo {
             System.out.println("PORTA NON VALIDA");
         }
         this.pending = new ArrayList<>();
+        this.exiting = false;
     }
 
     public static void main(String[] args) throws IOException {
@@ -98,8 +100,9 @@ public class Nodo {
 
           while(true){
               String command = stdin.readLine();
-              if(command.equals("EXIT")){
-                  //KILL ME
+              if(command.equals("exit")){
+                  System.out.println("KILL ME");
+                  exiting = true;
               }
               
           }
@@ -123,7 +126,7 @@ public class Nodo {
                 token = Token.getInstance();
                 answer = target.path("rest").path("nodes").path("enter").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getId()+"-localhost-"+n.getListeningPort()), MediaType.APPLICATION_JSON));
                 String tokenString = gson.toJson(token);  
-                n.inviaMessaggio("token:::"+tokenString, n.getNeighbour());
+                n.inviaMessaggio("token:::"+n.getListeningPort()+":::"+tokenString, n.getNeighbour());
             }else{
                 /*
                 String[] firstNodeInfo = nodesList.get(0).toString().split("-");
@@ -135,7 +138,7 @@ public class Nodo {
                 System.out.println(nodesList.get(randPick));
                 String[] nodeInfo = nodesList.get(randPick).toString().split("-");
                 System.out.println(nodeInfo[2]);
-                n.inviaMessaggio("insert-"+n.getListeningPort(), nodeInfo[2]);
+                n.inviaMessaggio("insert:::"+n.getListeningPort()+":::"+n.getListeningPort(), nodeInfo[2]);
                 
                 }
             
@@ -196,5 +199,13 @@ public class Nodo {
     }
     public List<String> getPending(){
         return this.pending;
+    }
+    
+    public boolean isExiting(){
+        return this.exiting;
+    }
+    
+    public void setExiting(boolean bool){
+        this.exiting = bool;
     }
 }
