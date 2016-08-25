@@ -90,12 +90,19 @@ public class Nodo {
 
         
         
-        String command = stdin.readLine();
-        if (command.equals("START")){
+        //String command = stdin.readLine();
+        //if (command.equals("START")){
           Gson gson = new Gson();
           String tokenString = gson.toJson(token);  
-          n.inviaMessaggio("token:::"+tokenString, n.getNeighbour());       
-        }
+          n.inviaMessaggio("token:::"+tokenString, n.getNeighbour());
+          while(true){
+              String command = stdin.readLine();
+              if(command.equals("EXIT")){
+                  //KILL ME
+              }
+              
+          }
+        //}
     }
     
     
