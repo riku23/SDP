@@ -37,6 +37,7 @@ public class Nodo {
     private String next;
     private String nodeType;
     private String id;
+    private String address;
     private int listeningPort;
     private Simulator simulatorInstance;
     private BufferImplementation bufferImpl;
@@ -44,9 +45,10 @@ public class Nodo {
     public Nodo() {
     }
 
-    public Nodo(String id, String nodeType, String listeningPort) {
+    public Nodo(String id, String nodeType,String address, String listeningPort) {
         this.id = id;
         this.nodeType = nodeType;
+        this.address = address;
         try {
             this.listeningPort = Integer.parseInt(listeningPort);
             switch (nodeType) {
@@ -82,9 +84,10 @@ public class Nodo {
 
 
         BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
-        Nodo n = new Nodo(args[0], args[1], args[2]);
+        Nodo n = new Nodo(args[0], args[1], args[2], args[3]);
         System.out.println("ID NODO: " + n.getId());
-        System.out.println("TIPOLOGIA NODO:" + n.getType());
+        System.out.println("TIPOLOGIA NODO: " + n.getType());
+        System.out.println("INDIRIZZO NODO: " + n.getAddress());
         ServerSocket serverSocket = new ServerSocket(n.getListeningPort());
         System.out.println("PORTA DI ASCOLTO: "+serverSocket.getLocalPort());
         ThreadServer threadNodoServer = new ThreadServer(serverSocket, "server", n);
@@ -116,29 +119,30 @@ public class Nodo {
         Client client = ClientBuilder.newClient(config);
         WebTarget target = client.target(getBaseURI());
         Gson gson = new Gson();
-        answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getId()+"-localhost-"+n.getListeningPort()), MediaType.APPLICATION_JSON));
+        answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getId()+"-"+n.getAddress()+"-"+n.getListeningPort()), MediaType.APPLICATION_JSON));
         if (answer.getStatus() == 202) {
             ArrayList nodesList = gson.fromJson(answer.readEntity(String.class), ArrayList.class);
             System.out.println(nodesList);
             if(nodesList.isEmpty()){
-                n.SetNeighbour(""+n.getListeningPort());
+                n.SetNeighbour(n.getAddress()+"-"+n.getListeningPort());
                 System.out.println("CREO IL TOKEN");
                 token = Token.getInstance();
-                answer = target.path("rest").path("nodes").path("enter").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getId()+"-localhost-"+n.getListeningPort()), MediaType.APPLICATION_JSON));
-                String tokenString = gson.toJson(token);  
-                n.inviaMessaggio("token:::"+n.getListeningPort()+":::"+tokenString, n.getNeighbour());
+                answer = target.path("rest").path("nodes").path("enter").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getId()+"-"+n.getAddress()+"-"+n.getListeningPort()), MediaType.APPLICATION_JSON));
+                String tokenString = gson.toJson(token);
+                String[] neighbourData = n.getNeighbour().split("-");
+                Message message = new Message("token",n.getAddress(),""+n.getListeningPort(),tokenString);
+                n.inviaMessaggio(message, neighbourData[0],neighbourData[1]);
+                //n.inviaMessaggio("token:::"+n.getAddress()+":::"+n.getListeningPort()+":::"+tokenString, neighbourData[0], neighbourData[1]);
             }else{
-                /*
-                String[] firstNodeInfo = nodesList.get(0).toString().split("-");
-                String[] lastNodeInfo = nodesList.get(nodesList.size()-2).toString().split("-");
-                n.SetNeighbour(firstNodeInfo[2]);
-                */
+                
                 int randPick = (int)(Math.random() * (nodesList.size()-1));
                 System.out.println("RANDOM PICK: "+ randPick);
                 System.out.println(nodesList.get(randPick));
                 String[] nodeInfo = nodesList.get(randPick).toString().split("-");
                 System.out.println(nodeInfo[2]);
-                n.inviaMessaggio("insert:::"+n.getListeningPort()+":::"+n.getListeningPort(), nodeInfo[2]);
+                Message message = new Message("insert", n.getAddress(), ""+n.getListeningPort(), n.getId()+"-"+n.getAddress()+"-"+n.getListeningPort());
+                n.inviaMessaggio(message, nodeInfo[1], nodeInfo[2]);
+                //n.inviaMessaggio("insert:::"+n.getAddress()+":::"+n.getListeningPort()+":::"+n.getId()+"-"+n.getAddress()+"-"+n.getListeningPort(),nodeInfo[1], nodeInfo[2]);
                 
                 }
             
@@ -146,13 +150,14 @@ public class Nodo {
             System.out.println("REGISTRAZIONE FALLITA");
         }
     }
-    public void inviaMessaggio(String Message, String toPort) throws IOException {
-        String address = "localhost";
+    public void inviaMessaggio(Message message,String address, String toPort) throws IOException {
+        Gson gson = new Gson();
+        String messageString = gson.toJson(message);
         String portString = toPort;
         int port = Integer.parseInt(portString);
         Socket clientSocket = new Socket(address, port);
         DataOutputStream outToServer = new DataOutputStream((clientSocket.getOutputStream()));
-        outToServer.writeBytes(Message + '\n');
+        outToServer.writeBytes(messageString + '\n');
         clientSocket.close();
     }
         
@@ -167,7 +172,9 @@ public class Nodo {
     public String getType(){
         return this.nodeType;
     }
-
+    public String getAddress(){
+        return this.address;
+    }
     private static URI getBaseURI() {
         return UriBuilder.fromUri("http://localhost:8084/Gateway").build();
     }

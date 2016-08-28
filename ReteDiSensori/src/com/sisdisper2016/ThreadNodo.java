@@ -53,13 +53,16 @@ public class ThreadNodo extends Thread {
             DataOutputStream outToClient = new DataOutputStream(estabSocket.getOutputStream());
             clientSentence = inFromClient.readLine();
             Gson gson = new Gson();
-            String[] splitMessage = clientSentence.split(":::");
+            Message messageIn = gson.fromJson(clientSentence, Message.class);
+
+            String header = messageIn.getHeader();
+            String senderAddr = messageIn.getSenderAddr();
+            String senderPort = messageIn.getSenderPort();
+            String body = messageIn.getBody();
             Thread.sleep(3000);
-            if (clientSentence.contains("token")) {
-                if (nodo.isExiting()) {
-                    System.out.println("NO MARIA IO ESCO: "+ splitMessage[1]);
-                    esciRete(""+splitMessage[1]);
-                }
+
+            if (header.equals("token")) {
+
                 System.out.println(nodo.getPending());
                 if (!nodo.getPending().isEmpty()) {
                     System.out.println("INSERISCO NODI");
@@ -69,8 +72,8 @@ public class ThreadNodo extends Thread {
                     }
 
                 }
-                
-                Token token = gson.fromJson(splitMessage[2], Token.class);
+
+                Token token = gson.fromJson(body, Token.class);
 
                 if (!nodo.getBuffer().isEmpty()) {
                     if ((nodo.getBuffer().getSize() + token.getMisurazioni()) > 15) {
@@ -85,16 +88,22 @@ public class ThreadNodo extends Thread {
                     System.out.println("BUFFER NODO VUOTO");
                 }
 
-                nodo.inviaMessaggio("token:::"+nodo.getListeningPort()+":::" + gson.toJson(token), nodo.getNeighbour());
-            }
-            if (clientSentence.contains("insert")) {
-                String[] splitString = clientSentence.split(":::");
-                nodo.addPending(splitString[2]);
-            }
-            if (clientSentence.contains("changeNext")) {
-                String[] splitString = clientSentence.split(":::");
+                String[] neighbourData = nodo.getNeighbour().split("-");
+                System.out.println(neighbourData[0] + " " + neighbourData[1]);
+                Message messageOut = new Message("token", nodo.getAddress(), "" + nodo.getListeningPort(), gson.toJson(token));
+                nodo.inviaMessaggio(messageOut, neighbourData[0], neighbourData[1]);
+                if (nodo.isExiting()) {
+                    System.out.println("NO MARIA IO ESCO!");
+                    esciRete(senderAddr, senderPort);
+                }
 
-                nodo.SetNeighbour(splitString[2]);
+            }
+            if (header.equals("insert")) {
+                nodo.addPending(body);
+            }
+            if (header.equals("changeNext")) {
+
+                nodo.SetNeighbour(body);
             }
         } catch (IOException | InterruptedException ex) {
             Logger.getLogger(ThreadNodo.class.getName()).log(Level.SEVERE, null, ex);
@@ -102,13 +111,32 @@ public class ThreadNodo extends Thread {
 
     }
 
-    public synchronized void esciRete(String prev) throws IOException{
-        nodo.inviaMessaggio("changeNext:::"+nodo.getListeningPort()+":::"+nodo.getNeighbour(), prev);
+    public synchronized void esciRete(String prevAddr, String prevPort) throws IOException {
+        Response answer;
+        ClientConfig config = new ClientConfig();
+        Client client = ClientBuilder.newClient(config);
+        WebTarget target = client.target(getBaseURI());
+        Gson gson = new Gson();
+        answer = target.path("rest").path("nodes").path("exit").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo.getId() + "-" + nodo.getAddress() + "-" + nodo.getListeningPort()), MediaType.APPLICATION_JSON));
+        Message message = new Message("changeNext", nodo.getAddress(), "" + nodo.getListeningPort(), nodo.getNeighbour());
+        nodo.inviaMessaggio(message, prevAddr, prevPort);
         nodo.setExiting(false);
+        //System.exit(0);
     }
+
     public synchronized void InserisciNodo(String newNodo) throws IOException {
-        nodo.inviaMessaggio("changeNext:::"+nodo.getListeningPort()+":::" + nodo.getNeighbour(), newNodo);
-        nodo.SetNeighbour(newNodo);
+        Response answer;
+        ClientConfig config = new ClientConfig();
+        Client client = ClientBuilder.newClient(config);
+        WebTarget target = client.target(getBaseURI());
+        Gson gson = new Gson();
+        answer = target.path("rest").path("nodes").path("enter").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(newNodo), MediaType.APPLICATION_JSON));
+        String[] splitString = newNodo.split("-");
+        String addr = splitString[1];
+        String port = splitString[2];
+        Message message = new Message("changeNext", nodo.getAddress(), "" + nodo.getListeningPort(), nodo.getNeighbour());
+        nodo.inviaMessaggio(message, addr, port);
+        nodo.SetNeighbour(addr + "-" + port);
 
     }
 
