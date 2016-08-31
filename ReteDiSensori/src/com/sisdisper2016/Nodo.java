@@ -71,11 +71,13 @@ public class Nodo {
 
                 default:
                     System.out.println("TIPOLOGIA DI NODO ERRATA");
+                    System.exit(0);
                     break;
             }
 
         } catch (NumberFormatException e) {
             System.out.println("PORTA NON VALIDA");
+            System.exit(0);
         }
         this.pending = new ArrayList<>();
         this.threads = new ArrayList<>();
@@ -93,9 +95,7 @@ public class Nodo {
         ServerSocket serverSocket = new ServerSocket(n.getListeningPort());
         System.out.println("PORTA DI ASCOLTO: "+serverSocket.getLocalPort());
         ThreadServer threadNodoServer = new ThreadServer(serverSocket, "server", n);
-        n.addThread(threadNodoServer);
         threadNodoServer.start();
-        
         registraNodo(n);
 
         
