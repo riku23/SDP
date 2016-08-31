@@ -68,9 +68,19 @@ public class NodesResource {
     public Response postEnter(String nodoString){
         Gson gson = new Gson();
            String nodo = gson.fromJson(nodoString, String.class);
-            System.out.println(nodo);
             String[] nodoInfo = nodo.split("-");
             Nodes.getInstance().inserisciNodo(nodoInfo);
+            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();  
+    }
+            @Path("exit")
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response postExit(String nodoString){
+        Gson gson = new Gson();
+           String nodo = gson.fromJson(nodoString, String.class);
+            String[] nodoInfo = nodo.split("-");
+            Nodes.getInstance().rimuoviNodo(nodoInfo);
             return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();  
     }
     

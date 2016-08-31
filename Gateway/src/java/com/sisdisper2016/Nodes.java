@@ -40,6 +40,11 @@ public class Nodes {
             nodiInseriti.add(nodo[0]+"-"+nodo[1]+"-"+nodo[2]);
     }
     
+    public synchronized void rimuoviNodo(String[] nodo){
+            
+            nodiInseriti.remove(nodo[0]+"-"+nodo[1]+"-"+nodo[2]);
+            nodiRegistrati.remove(nodo[0]+"-"+nodo[1]+"-"+nodo[2]);
+    }
  public List<String> nodiRegistrati(){
      return this.nodiRegistrati;
  }

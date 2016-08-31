@@ -41,6 +41,7 @@ public class Nodo {
     private int listeningPort;
     private Simulator simulatorInstance;
     private BufferImplementation bufferImpl;
+    private List<Thread> threads;
     //private static MeasurementBuffer buffer;
     public Nodo() {
     }
@@ -77,10 +78,11 @@ public class Nodo {
             System.out.println("PORTA NON VALIDA");
         }
         this.pending = new ArrayList<>();
+        this.threads = new ArrayList<>();
         this.exiting = false;
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
 
 
         BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
@@ -90,8 +92,10 @@ public class Nodo {
         System.out.println("INDIRIZZO NODO: " + n.getAddress());
         ServerSocket serverSocket = new ServerSocket(n.getListeningPort());
         System.out.println("PORTA DI ASCOLTO: "+serverSocket.getLocalPort());
-        ThreadServer threadNodoServer = new ThreadServer(serverSocket, "server", n);
+        ThreadNodo threadNodoServer = new ThreadNodo(serverSocket, "server", n);
+        n.addThread(threadNodoServer);
         threadNodoServer.start();
+        
         registraNodo(n);
 
         
@@ -106,6 +110,12 @@ public class Nodo {
               if(command.equals("exit")){
                   System.out.println("KILL ME");
                   exiting = true;
+                  n.getSimulator().stopMeGently();
+                  /*for(Thread t: threads){
+                      t.join();
+                  }
+                  System.out.println("ESCO");
+                  System.exit(0);*/
               }
               
           }
@@ -214,5 +224,13 @@ public class Nodo {
     
     public void setExiting(boolean bool){
         this.exiting = bool;
+    }
+    
+    public void addThread(Thread thread){
+        this.threads.add(thread);
+    }
+    
+    public List<Thread> getThreads(){
+        return this.threads;
     }
 }

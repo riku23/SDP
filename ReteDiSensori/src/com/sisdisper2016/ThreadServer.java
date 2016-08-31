@@ -33,8 +33,13 @@ public class ThreadServer extends Thread {
         while (true) {
             try {
                 Socket estabSocket = serverSocket.accept();
-                ThreadNodo threadNodoServer = new ThreadNodo(estabSocket, "server", nodo);
-                threadNodoServer.start();
+                ThreadNodo threadNodo = new ThreadNodo(serverSocket, "server", nodo);
+                nodo.addThread(threadNodo);
+                threadNodo.start();
+                /*if(nodo.isExiting()){
+                    serverSocket.close();
+                    break;
+                }*/
             } catch (IOException ex) {
                 Logger.getLogger(ThreadServer.class.getName()).log(Level.SEVERE, null, ex);
             }
