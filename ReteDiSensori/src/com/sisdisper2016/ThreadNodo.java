@@ -34,24 +34,24 @@ public class ThreadNodo extends Thread {
     private boolean stopped = false;
     private final Nodo nodo;
     private final String threadType;
-    private final ServerSocket socket;
+    private final Socket estabSocket;
     private String clientSentence;
     private String capitalizedSentence;
     private final static String MESSAGE1 = "ciao";
     private final static String MESSAGE2 = "chain";
 
     //COSTRUTTORE
-    public ThreadNodo(ServerSocket socket, String type, Nodo n) {
-        this.socket = socket;
+    public ThreadNodo(Socket socket, String type, Nodo n) {
+        this.estabSocket = socket;
         this.threadType = type;
         this.nodo = n;
     }
 
     @Override
     public void run() {
-        while (!stopped) {
+
             try {
-                Socket estabSocket = socket.accept();
+                
 
                 BufferedReader inFromClient = new BufferedReader(new InputStreamReader((estabSocket.getInputStream())));
                 DataOutputStream outToClient = new DataOutputStream(estabSocket.getOutputStream());
@@ -64,7 +64,7 @@ public class ThreadNodo extends Thread {
                 String senderPort = messageIn.getSenderPort();
                 String body = messageIn.getBody();
                 
-
+                Thread.sleep(2000);
                 if (header.equals("token")) {
                     System.out.println(nodo.getThreads().size());
                     System.out.println(nodo.getPending());
@@ -96,6 +96,14 @@ public class ThreadNodo extends Thread {
                     System.out.println(neighbourData[0] + " " + neighbourData[1]);
                     Message messageOut = new Message("token", nodo.getAddress(), "" + nodo.getListeningPort(), gson.toJson(token));
                     nodo.inviaMessaggio(messageOut, neighbourData[0], neighbourData[1]);
+                    if (nodo.isExiting()) {
+                        System.out.println("NO MARIA IO ESCO!");
+                        esciRete(senderAddr, senderPort);
+                        //break;
+
+                    }
+                
+                
                 }
                     if (header.equals("insert")) {
                         nodo.addPending(body);
@@ -104,20 +112,15 @@ public class ThreadNodo extends Thread {
 
                         nodo.SetNeighbour(body);
                     }
-                    if (nodo.isExiting()) {
-                        System.out.println("NO MARIA IO ESCO!");
-                        esciRete(senderAddr, senderPort);
-                        break;
+                    
 
-                    }
-
-                Thread.sleep(2000);
+                
             } catch (IOException | InterruptedException ex) {
                 Logger.getLogger(ThreadNodo.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
         
-    }
+    
 
     public synchronized void esciRete(String prevAddr, String prevPort) throws IOException {
         if (prevAddr.equals(nodo.getAddress()) && prevPort.equals("" + nodo.getListeningPort())) {
@@ -132,7 +135,7 @@ public class ThreadNodo extends Thread {
             System.exit(0);
 
         }
-        System.out.println("QUI ARRIVO");
+
         Response answer;
         ClientConfig config = new ClientConfig();
         Client client = ClientBuilder.newClient(config);
@@ -141,10 +144,10 @@ public class ThreadNodo extends Thread {
         answer = target.path("rest").path("nodes").path("exit").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo.getId() + "-" + nodo.getAddress() + "-" + nodo.getListeningPort()), MediaType.APPLICATION_JSON));
         Message message = new Message("changeNext", nodo.getAddress(), "" + nodo.getListeningPort(), nodo.getNeighbour());
         nodo.inviaMessaggio(message, prevAddr, prevPort);
-        System.out.println("E QUI INVECE?");
+
         nodo.setExiting(false);
         this.stopped = true;
-        nodo.getThreads().stream().forEach((t) -> {
+        /*nodo.getThreads().stream().forEach((t) -> {
             try {
                 t.join();
             } catch (InterruptedException ex) {
@@ -152,7 +155,7 @@ public class ThreadNodo extends Thread {
             }
         });
         System.exit(0);
-
+        */
     }
 
     public synchronized void InserisciNodo(String newNodo) throws IOException {

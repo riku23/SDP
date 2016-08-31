@@ -33,7 +33,7 @@ public class ThreadServer extends Thread {
         while (true) {
             try {
                 Socket estabSocket = serverSocket.accept();
-                ThreadNodo threadNodo = new ThreadNodo(serverSocket, "server", nodo);
+                ThreadNodo threadNodo = new ThreadNodo(estabSocket, "server", nodo);
                 nodo.addThread(threadNodo);
                 threadNodo.start();
                 /*if(nodo.isExiting()){

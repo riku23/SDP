@@ -92,7 +92,7 @@ public class Nodo {
         System.out.println("INDIRIZZO NODO: " + n.getAddress());
         ServerSocket serverSocket = new ServerSocket(n.getListeningPort());
         System.out.println("PORTA DI ASCOLTO: "+serverSocket.getLocalPort());
-        ThreadNodo threadNodoServer = new ThreadNodo(serverSocket, "server", n);
+        ThreadServer threadNodoServer = new ThreadServer(serverSocket, "server", n);
         n.addThread(threadNodoServer);
         threadNodoServer.start();
         
