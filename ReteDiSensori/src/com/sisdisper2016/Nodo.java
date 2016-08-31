@@ -54,17 +54,17 @@ public class Nodo {
             this.listeningPort = Integer.parseInt(listeningPort);
             switch (nodeType) {
                 case "Accelerometer":
-                    bufferImpl = new BufferImplementation();
+                    bufferImpl = new BufferImplementation(true);
                     simulatorInstance = new AccelerometerSimulator(id, bufferImpl);
                     new Thread(simulatorInstance).start();
                     break;
                 case "Light":
-                    bufferImpl = new BufferImplementation();
+                    bufferImpl = new BufferImplementation(false);
                     simulatorInstance = new LightSimulator(id, bufferImpl);
                     new Thread(simulatorInstance).start();
                     break;
                 case "Temperature":
-                    bufferImpl = new BufferImplementation();
+                    bufferImpl = new BufferImplementation(false);
                     simulatorInstance = new TemperatureSimulator(id, bufferImpl);
                     new Thread(simulatorInstance).start();
                     break;
