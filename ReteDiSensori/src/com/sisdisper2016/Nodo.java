@@ -5,15 +5,18 @@
  */
 package com.sisdisper2016;
 
+import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.reflect.Type;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
@@ -32,12 +35,13 @@ import org.glassfish.jersey.client.ClientConfig;
  */
 public class Nodo {
         private static boolean exiting;
-    private List<String> pending;
+    private List<NodoInfo> pending;
     static Token token;
     private String next;
     private String nodeType;
     private String id;
     private String address;
+    private NodoInfo nodoInfo;
     private int listeningPort;
     private Simulator simulatorInstance;
     private BufferImplementation bufferImpl;
@@ -53,17 +57,17 @@ public class Nodo {
         try {
             this.listeningPort = Integer.parseInt(listeningPort);
             switch (nodeType) {
-                case "Accelerometer":
+                case "accelerometer":
                     bufferImpl = new BufferImplementation(true);
                     simulatorInstance = new AccelerometerSimulator(id, bufferImpl);
                     new Thread(simulatorInstance).start();
                     break;
-                case "Light":
+                case "light":
                     bufferImpl = new BufferImplementation(false);
                     simulatorInstance = new LightSimulator(id, bufferImpl);
                     new Thread(simulatorInstance).start();
                     break;
-                case "Temperature":
+                case "temperature":
                     bufferImpl = new BufferImplementation(false);
                     simulatorInstance = new TemperatureSimulator(id, bufferImpl);
                     new Thread(simulatorInstance).start();
@@ -82,6 +86,7 @@ public class Nodo {
         this.pending = new ArrayList<>();
         this.threads = new ArrayList<>();
         this.exiting = false;
+        this.nodoInfo = new NodoInfo(id, nodeType, new Date(), address, listeningPort);
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -128,16 +133,18 @@ public class Nodo {
         ClientConfig config = new ClientConfig();
         Client client = ClientBuilder.newClient(config);
         WebTarget target = client.target(getBaseURI());
+        
         Gson gson = new Gson();
-        answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getId()+"-"+n.getAddress()+"-"+n.getListeningPort()), MediaType.APPLICATION_JSON));
+        answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
         if (answer.getStatus() == 202) {
-            ArrayList nodesList = gson.fromJson(answer.readEntity(String.class), ArrayList.class);
+            Type t = new TypeToken<ArrayList<NodoInfo>>() {}.getType();
+            ArrayList<NodoInfo> nodesList = gson.fromJson(answer.readEntity(String.class),t);
             System.out.println(nodesList);
             if(nodesList.isEmpty()){
                 n.SetNeighbour(n.getAddress()+"-"+n.getListeningPort());
                 System.out.println("CREO IL TOKEN");
                 token = Token.getInstance();
-                answer = target.path("rest").path("nodes").path("enter").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getId()+"-"+n.getAddress()+"-"+n.getListeningPort()), MediaType.APPLICATION_JSON));
+                answer = target.path("rest").path("nodes").path("enter").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
                 String tokenString = gson.toJson(token);
                 String[] neighbourData = n.getNeighbour().split("-");
                 Message message = new Message("token",n.getAddress(),""+n.getListeningPort(),tokenString);
@@ -147,11 +154,11 @@ public class Nodo {
                 
                 int randPick = (int)(Math.random() * (nodesList.size()-1));
                 System.out.println("RANDOM PICK: "+ randPick);
-                System.out.println(nodesList.get(randPick));
-                String[] nodeInfo = nodesList.get(randPick).toString().split("-");
-                System.out.println(nodeInfo[2]);
-                Message message = new Message("insert", n.getAddress(), ""+n.getListeningPort(), n.getId()+"-"+n.getAddress()+"-"+n.getListeningPort());
-                n.inviaMessaggio(message, nodeInfo[1], nodeInfo[2]);
+                NodoInfo nodeInfo = (NodoInfo) nodesList.get(randPick);
+                System.out.println(nodeInfo);
+                String nodoInfoString = gson.toJson(n.getNodoInfo());
+                Message message = new Message("insert", n.getAddress(), ""+n.getListeningPort(), nodoInfoString);
+                n.inviaMessaggio(message, nodeInfo.getAddress(), nodeInfo.getPort());
                 //n.inviaMessaggio("insert:::"+n.getAddress()+":::"+n.getListeningPort()+":::"+n.getId()+"-"+n.getAddress()+"-"+n.getListeningPort(),nodeInfo[1], nodeInfo[2]);
                 
                 }
@@ -170,7 +177,9 @@ public class Nodo {
         outToServer.writeBytes(messageString + '\n');
         clientSocket.close();
     }
-        
+    public NodoInfo getNodoInfo(){
+        return this.nodoInfo;
+    }    
     public String getId() {
         return this.id;
     }
@@ -207,14 +216,14 @@ public class Nodo {
         this.next = neighbour;
     }
     
-    public synchronized void addPending(String s){
+    public synchronized void addPending(NodoInfo s){
         pending.add(s);
     }
     
-    public synchronized void removePending(String s){
+    public synchronized void removePending(NodoInfo s){
         pending.remove(s);
     }
-    public List<String> getPending(){
+    public List<NodoInfo> getPending(){
         return this.pending;
     }
     

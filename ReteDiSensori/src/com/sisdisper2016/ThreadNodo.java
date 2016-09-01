@@ -101,7 +101,8 @@ public class ThreadNodo extends Thread {
 
             }
             if (header.equals("insert")) {
-                nodo.addPending(body);
+                NodoInfo nodoInfo = gson.fromJson(body, NodoInfo.class);
+                nodo.addPending(nodoInfo);
             }
             if (header.equals("changeNext")) {
 
@@ -123,22 +124,22 @@ public class ThreadNodo extends Thread {
         Client client = ClientBuilder.newClient(config);
         WebTarget target = client.target(getBaseURI());
         Gson gson = new Gson();
-        answer = target.path("rest").path("nodes").path("exit").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo.getId() + "-" + nodo.getAddress() + "-" + nodo.getListeningPort()), MediaType.APPLICATION_JSON));
+        answer = target.path("rest").path("nodes").path("exit").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo.getNodoInfo()), MediaType.APPLICATION_JSON));
 
         nodo.setExiting(false);
         System.exit(0);
     }
 
-    public synchronized void InserisciNodo(String newNodo) throws IOException {
+    public synchronized void InserisciNodo(NodoInfo newNodo) throws IOException {
         Response answer;
         ClientConfig config = new ClientConfig();
         Client client = ClientBuilder.newClient(config);
         WebTarget target = client.target(getBaseURI());
         Gson gson = new Gson();
         answer = target.path("rest").path("nodes").path("enter").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(newNodo), MediaType.APPLICATION_JSON));
-        String[] splitString = newNodo.split("-");
-        String addr = splitString[1];
-        String port = splitString[2];
+        
+        String addr = newNodo.getAddress();
+        String port = newNodo.getPort();
         Message message = new Message("changeNext", nodo.getAddress(), "" + nodo.getListeningPort(), nodo.getNeighbour());
         nodo.inviaMessaggio(message, addr, port);
         nodo.SetNeighbour(addr + "-" + port);
