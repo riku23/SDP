@@ -63,6 +63,7 @@ public class GatewayBuffer {
         }
         return temp;
     }
+    
 
     public List<Measurement> getListByType(String type) {
         List<Measurement> temp = new ArrayList<>();

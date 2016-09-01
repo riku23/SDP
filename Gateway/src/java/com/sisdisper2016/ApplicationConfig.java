@@ -33,6 +33,7 @@ public class ApplicationConfig extends Application {
      */
     private void addRestResourceClasses(Set<Class<?>> resources) {
         resources.add(com.sisdisper2016.NodesResource.class);
+        resources.add(com.sisdisper2016.UsersResource.class);
     }
     
 }

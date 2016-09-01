@@ -70,9 +70,9 @@ public class NodoInfo {
     public void setPort(String port) {
         this.port = port;
     }
-    
+
     @Override
-    public String toString(){
-        return this.id+"-"+this.type+"-"+this.address+"-"+this.port;
+    public String toString() {
+        return this.id + "-" + this.type + "-" + this.address + "-" + this.port + "-" + this.uptime.toString();
     }
 }
