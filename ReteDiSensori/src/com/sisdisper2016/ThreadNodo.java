@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -63,14 +64,19 @@ public class ThreadNodo extends Thread {
             String senderPort = messageIn.getSenderPort();
             String body = messageIn.getBody();
 
+            List<NodoInfo> temp;
             Thread.sleep(2000);
             if (header.equals("token")) {
                 System.out.println(nodo.getPending());
-                if (!nodo.getPending().isEmpty()) {
+                
+                synchronized (nodo.getPending()) {
+                    temp = new ArrayList<>(nodo.getPending());
+                }
+                if (!temp.isEmpty()) {
                     System.out.println("INSERISCO NODI");
-                    for (int i = 0; i < nodo.getPending().size(); i++) {
-                        InserisciNodo(nodo.getPending().get(i));
-                        nodo.removePending(nodo.getPending().get(i));
+                    for (int i = 0; i < temp.size(); i++) {
+                        InserisciNodo(temp.get(i));
+                        nodo.removePending(temp.get(i));
                     }
                 }
 
@@ -90,23 +96,38 @@ public class ThreadNodo extends Thread {
                 }
 
                 String[] neighbourData = nodo.getNeighbour().split("-");
-                System.out.println("PROSSIMO NODO: "+neighbourData[0] + " " + neighbourData[1]);
-                Message messageOut = new Message("token", nodo.getAddress(), "" + nodo.getListeningPort(), gson.toJson(token));
-                nodo.inviaMessaggio(messageOut, neighbourData[0], neighbourData[1]);
+                System.out.println("PROSSIMO NODO: " + neighbourData[0] + " " + neighbourData[1]);
+
                 if (nodo.isExiting()) {
                     System.out.println("NO MARIA IO ESCO!");
                     esciRete(senderAddr, senderPort);
-
                 }
-
+                Message messageOut = new Message("token", nodo.getAddress(), "" + nodo.getListeningPort(), gson.toJson(token));
+                nodo.inviaMessaggio(messageOut, neighbourData[0], neighbourData[1]);
             }
             if (header.equals("insert")) {
                 NodoInfo nodoInfo = gson.fromJson(body, NodoInfo.class);
                 nodo.addPending(nodoInfo);
             }
-            if (header.equals("changeNext")) {
 
+            if (header.equals("changeNext")) {
+                System.out.println("CHANGE NEXT");
                 nodo.SetNeighbour(body);
+                Message message = new Message("ack", nodo.getAddress(), "" + nodo.getListeningPort(), "");
+                nodo.inviaMessaggio(message, senderAddr, senderPort);
+            }
+
+            if (header.equals("ack")) {
+ 
+                System.out.println("ACK RICEVUTO");
+                synchronized (nodo.getAck()) {
+                    nodo.getAck()[0]--;
+                    //System.out.println("ACK: "+ nodo.getAck()[0]);
+                    if (nodo.getAck()[0] == 0) {
+                        nodo.getAck().notify();
+                        
+                    }
+                }
             }
 
         } catch (IOException | InterruptedException ex) {
@@ -114,10 +135,17 @@ public class ThreadNodo extends Thread {
         }
     }
 
-    public synchronized void esciRete(String prevAddr, String prevPort) throws IOException {
+    public void esciRete(String prevAddr, String prevPort) throws IOException, InterruptedException {
         if (!(prevAddr + "-" + prevPort).equals(nodo.getAddress() + "-" + nodo.getListeningPort())) {
-            Message message = new Message("changeNext", nodo.getAddress(), "" + nodo.getListeningPort(), nodo.getNeighbour());
-            nodo.inviaMessaggio(message, prevAddr, prevPort);
+
+            synchronized (nodo.getAck()) {
+                Message message = new Message("changeNext", nodo.getAddress(), "" + nodo.getListeningPort(), nodo.getNeighbour());
+                nodo.inviaMessaggio(message, prevAddr, prevPort);
+                nodo.getAck()[0]++;
+                //System.out.println("ACK: "+ nodo.getAck()[0]);
+                nodo.getAck().wait();
+            }
+
         }
         Response answer;
         ClientConfig config = new ClientConfig();
@@ -125,28 +153,33 @@ public class ThreadNodo extends Thread {
         WebTarget target = client.target(getBaseURI());
         Gson gson = new Gson();
         answer = target.path("rest").path("nodes").path("exit").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo.getNodoInfo()), MediaType.APPLICATION_JSON));
-
-        nodo.setExiting(false);
-        System.exit(0);
+        nodo.getServerSocket().close();
+        //nodo.setExiting(false);
+        //System.exit(0);
     }
 
-    public synchronized void InserisciNodo(NodoInfo newNodo) throws IOException {
+    public void InserisciNodo(NodoInfo newNodo) throws IOException, InterruptedException {
         Response answer;
         ClientConfig config = new ClientConfig();
         Client client = ClientBuilder.newClient(config);
         WebTarget target = client.target(getBaseURI());
         Gson gson = new Gson();
         answer = target.path("rest").path("nodes").path("enter").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(newNodo), MediaType.APPLICATION_JSON));
-        
+
         String addr = newNodo.getAddress();
         String port = newNodo.getPort();
-        Message message = new Message("changeNext", nodo.getAddress(), "" + nodo.getListeningPort(), nodo.getNeighbour());
-        nodo.inviaMessaggio(message, addr, port);
+
+        synchronized (nodo.getAck()) {
+            Message message = new Message("changeNext", nodo.getAddress(), "" + nodo.getListeningPort(), nodo.getNeighbour());
+            nodo.inviaMessaggio(message, addr, port);
+            nodo.getAck()[0]++;
+            nodo.getAck().wait();
+        }
         nodo.SetNeighbour(addr + "-" + port);
 
     }
 
-    public synchronized void InviaMisurazioniToken(Token t) {
+    public void InviaMisurazioniToken(Token t) {
         System.out.println("INVIO MISURAZIONI TOKEN AL GATEWAY");
         Response answer;
         ClientConfig config = new ClientConfig();

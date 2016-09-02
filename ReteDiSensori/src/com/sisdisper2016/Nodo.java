@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -34,7 +36,9 @@ import org.glassfish.jersey.client.ClientConfig;
  * @author Tozio23
  */
 public class Nodo {
-        private static boolean exiting;
+    private ServerSocket serverSocket;
+    private int[] ackCounter;
+    private static boolean exiting;
     private List<NodoInfo> pending;
     static Token token;
     private String next;
@@ -87,6 +91,13 @@ public class Nodo {
         this.threads = new ArrayList<>();
         this.exiting = false;
         this.nodoInfo = new NodoInfo(id, nodeType, new Date(), address, listeningPort);
+        this.ackCounter = new int[1];
+        this.ackCounter[0] = 0;
+        try {
+            this.serverSocket = new ServerSocket(this.listeningPort);
+        } catch (IOException ex) {
+            Logger.getLogger(Nodo.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -97,9 +108,9 @@ public class Nodo {
         System.out.println("ID NODO: " + n.getId());
         System.out.println("TIPOLOGIA NODO: " + n.getType());
         System.out.println("INDIRIZZO NODO: " + n.getAddress());
-        ServerSocket serverSocket = new ServerSocket(n.getListeningPort());
-        System.out.println("PORTA DI ASCOLTO: "+serverSocket.getLocalPort());
-        ThreadServer threadNodoServer = new ThreadServer(serverSocket, "server", n);
+        
+        System.out.println("PORTA DI ASCOLTO: "+n.getServerSocket().getLocalPort());
+        ThreadServer threadNodoServer = new ThreadServer(n.getServerSocket(), "server", n);
         threadNodoServer.start();
         registraNodo(n);
 
@@ -110,21 +121,18 @@ public class Nodo {
         //String command = stdin.readLine();
         //if (command.equals("START")){
 
-          while(true){
+          while(!exiting){
               String command = stdin.readLine();
               if(command.equals("exit")){
                   System.out.println("KILL ME");
                   exiting = true;
                   n.getSimulator().stopMeGently();
-                  /*for(Thread t: threads){
-                      t.join();
-                  }
-                  System.out.println("ESCO");
-                  System.exit(0);*/
+     
               }
               
           }
-        //}
+          
+
     }
     
     
@@ -202,6 +210,10 @@ public class Nodo {
         return this.listeningPort;
     }
     
+    public ServerSocket getServerSocket(){
+        return this.serverSocket;
+    }
+    
 
     
     public String getNeighbour(){
@@ -241,5 +253,9 @@ public class Nodo {
     
     public List<Thread> getThreads(){
         return this.threads;
+    }
+    
+    public int[] getAck(){
+        return this.ackCounter;
     }
 }

@@ -35,12 +35,10 @@ public class ThreadServer extends Thread {
                 Socket estabSocket = serverSocket.accept();
                 ThreadNodo threadNodo = new ThreadNodo(estabSocket, "server", nodo);
                 threadNodo.start();
-                /*if(nodo.isExiting()){
-                    serverSocket.close();
-                    break;
-                }*/
+
             } catch (IOException ex) {
                 Logger.getLogger(ThreadServer.class.getName()).log(Level.SEVERE, null, ex);
+                break;
             }
 
         }
