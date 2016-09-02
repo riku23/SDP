@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -144,25 +145,28 @@ public class Nodo {
         
         Gson gson = new Gson();
         answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException ex) {
+            Logger.getLogger(Nodo.class.getName()).log(Level.SEVERE, null, ex);
+        }
         if (answer.getStatus() == 202) {
-            Type t = new TypeToken<ArrayList<NodoInfo>>() {}.getType();
-            ArrayList<NodoInfo> nodesList = gson.fromJson(answer.readEntity(String.class),t);
+            Type t = new TypeToken<HashMap<String,NodoInfo>>() {}.getType();
+            HashMap<String,NodoInfo> nodesList = gson.fromJson(answer.readEntity(String.class),t);
             System.out.println(nodesList);
             if(nodesList.isEmpty()){
                 n.SetNeighbour(n.getAddress()+"-"+n.getListeningPort());
                 System.out.println("CREO IL TOKEN");
                 token = Token.getInstance();
-                answer = target.path("rest").path("nodes").path("enter").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
                 String tokenString = gson.toJson(token);
                 String[] neighbourData = n.getNeighbour().split("-");
                 Message message = new Message("token",n.getAddress(),""+n.getListeningPort(),tokenString);
                 n.inviaMessaggio(message, neighbourData[0],neighbourData[1]);
                 //n.inviaMessaggio("token:::"+n.getAddress()+":::"+n.getListeningPort()+":::"+tokenString, neighbourData[0], neighbourData[1]);
             }else{
-                
-                int randPick = (int)(Math.random() * (nodesList.size()-1));
-                System.out.println("RANDOM PICK: "+ randPick);
-                NodoInfo nodeInfo = (NodoInfo) nodesList.get(randPick);
+                List<String> keysAsArray = new ArrayList<>(nodesList.keySet());
+                Random r = new Random();
+                NodoInfo nodeInfo = (NodoInfo) nodesList.get(keysAsArray.get(r.nextInt(keysAsArray.size())));
                 System.out.println(nodeInfo);
                 String nodoInfoString = gson.toJson(n.getNodoInfo());
                 Message message = new Message("insert", n.getAddress(), ""+n.getListeningPort(), nodoInfoString);

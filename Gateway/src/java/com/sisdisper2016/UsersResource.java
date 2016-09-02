@@ -10,10 +10,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.UriInfo;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.Produces;
-import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.PUT;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -28,11 +26,13 @@ public class UsersResource {
 
     @Context
     private UriInfo context;
+    private Users users;
 
     /**
      * Creates a new instance of GenericResource
      */
     public UsersResource() {
+        users = Users.getInstance();
     }
 
     /**
@@ -45,20 +45,22 @@ public class UsersResource {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public synchronized Response postLogin(String userString) {
+    public Response postLogin(String userString) {
         Gson gson = new Gson();
         String user = gson.fromJson(userString, String.class);
         System.out.println(user);
         //String[] nodoInfo = nodo.split("-");
-        if (Users.getInstance().getUsers().contains(user)) {
+        synchronized (users.getUsers()) {
+            if (users.getUsers().contains(user)) {
 
-            return Response.status(Response.Status.NOT_ACCEPTABLE).build();
-            //return Response.ok(new UserInfo("OK")).build();
-        } else {
+                return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+                //return Response.ok(new UserInfo("OK")).build();
+            } else {
 
-            Users.getInstance().registraUtente(user);
+                users.registraUtente(user);
 
-            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();
+                return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(users.getUsers())).build();
+            }
         }
     }
 
@@ -70,8 +72,10 @@ public class UsersResource {
         Gson gson = new Gson();
         String user = gson.fromJson(userString, String.class);
         //String[] nodoInfo = nodo.split("-");
-        Users.getInstance().logout(user);
-        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();
+        synchronized (users.getUsers()) {
+            users.logout(user);
+            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(users.getUsers())).build();
+        }
     }
 
     /**

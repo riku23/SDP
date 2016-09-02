@@ -6,7 +6,9 @@
 package com.sisdisper2016;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -15,13 +17,15 @@ import java.util.List;
 public class Nodes {
 
     private static Nodes instance = null;
-    private final List<NodoInfo> nodiRegistrati;
-    private final List<NodoInfo> nodiInseriti;
+    private Map<String, NodoInfo> nodiRegistratiMap;
+    private Map<String, NodoInfo> nodiInseritiMap; 
+
     //private final  HashMap<String,String> nodi;
 
     private Nodes() {
-        nodiRegistrati = new ArrayList<>();
-        nodiInseriti = new ArrayList<>();
+        nodiRegistratiMap = new HashMap<>();
+        nodiInseritiMap = new HashMap<>();
+
         // Exists only to defeat instantiation.
     }
 
@@ -32,44 +36,36 @@ public class Nodes {
         return instance;
     }
 
-    public synchronized void registraNodo(NodoInfo nodo) {
-
-        nodiRegistrati.add(nodo);
+    public  void registraNodo(NodoInfo nodo) {
+         nodiRegistratiMap.put(nodo.getId(), nodo);
+        
     }
 
-    public synchronized void inserisciNodo(NodoInfo nodo) {
-
-        nodiInseriti.add(nodo);
-    }
-
-    public synchronized void rimuoviNodo(NodoInfo nodo) {
-        for (NodoInfo n : nodiInseriti) {
-            if (n.getId().equals(nodo.getId())) {
-                nodiInseriti.remove(n);
-            }
-        }
-        for (NodoInfo n : nodiRegistrati) {
-            if (n.getId().equals(nodo.getId())) {
-                nodiRegistrati.remove(n);
-            }
-        }
+    public  void inserisciNodo(NodoInfo nodo) {
+        nodiInseritiMap.put(nodo.getId(), nodo);
 
     }
 
-    public List<NodoInfo> nodiRegistrati() {
-        return this.nodiRegistrati;
+    public  void rimuoviNodo(NodoInfo nodo) {
+        nodiInseritiMap.remove(nodo.getId());
+        
+
     }
 
-    public List<NodoInfo> nodiInseriti() {
-        return this.nodiInseriti;
+    public Map<String,NodoInfo> nodiRegistrati() {
+        return this.nodiRegistratiMap;
+    }
+
+    public Map<String,NodoInfo> nodiInseriti() {
+        return this.nodiInseritiMap;
     }
 
     public String toStringRegistrati() {
-        return nodiRegistrati.toString();
+        return nodiRegistratiMap.toString();
     }
 
     public String toStringInseriti() {
-        return nodiInseriti.toString();
+        return nodiInseritiMap.toString();
     }
 
 }

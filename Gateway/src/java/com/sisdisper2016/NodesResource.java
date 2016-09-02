@@ -6,6 +6,8 @@
 package com.sisdisper2016;
 
 import com.google.gson.Gson;
+import java.util.HashMap;
+import java.util.List;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.UriInfo;
 import javax.ws.rs.Consumes;
@@ -13,7 +15,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.PUT;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -28,8 +29,10 @@ public class NodesResource {
 
     @Context
     private UriInfo context;
-    private String[] utenti = {"id5", "id6"};
-
+    private AccelerometerBuffer accelerometerBuffer;
+    private LightBuffer lightBuffer;
+    private TemperatureBuffer temperatureBuffer;
+    private Nodes nodes;
     /**
      * Creates a new instance of GenericResource
      */
@@ -40,27 +43,37 @@ public class NodesResource {
      * Retrieves representation of an instance of
      * com.sisdisper2016.gateway.NodesResource
      *
+     * @param nodoString
      * @return an instance of java.lang.String
      */
-
     @Path("register")
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public synchronized Response postRegister(String nodoString) {
+    public Response postRegister(String nodoString) {
+        nodes = Nodes.getInstance();
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
         System.out.println(nodo.toString());
         //String[] nodoInfo = nodo.split("-");
-        if (Nodes.getInstance().nodiRegistrati().contains(nodo)) {
+        synchronized (nodes.nodiRegistrati()) {
 
-            return Response.status(Response.Status.NOT_ACCEPTABLE).build();
-            //return Response.ok(new UserInfo("OK")).build();
-        } else {
+            if (nodes.nodiRegistrati().containsKey(nodo.getId())) {
 
-            Nodes.getInstance().registraNodo(nodo);
+                return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+                //return Response.ok(new UserInfo("OK")).build();
+            } else {
 
-            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();
+                nodes.registraNodo(nodo);
+                synchronized(nodes.nodiInseriti()){
+                    if(nodes.nodiInseriti().isEmpty()){
+                    nodes.inserisciNodo(nodo);
+                    return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(new HashMap<String, NodoInfo>())).build();
+                    }
+                }
+                System.out.println("NODI REGISTRATI: "+nodes.nodiRegistrati());
+                return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(nodes.nodiInseriti())).build();
+            }
         }
     }
 
@@ -68,12 +81,16 @@ public class NodesResource {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public synchronized Response postEnter(String nodoString) {
+    public Response postEnter(String nodoString) {
+        nodes = Nodes.getInstance();
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
         //String[] nodoInfo = nodo.split("-");
-        Nodes.getInstance().inserisciNodo(nodo);
-        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();
+        synchronized (nodes.nodiInseriti()) {
+            nodes.inserisciNodo(nodo);
+            System.out.println("NODI INSERITI: "+nodes.nodiInseriti());
+            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(nodes.nodiInseriti())).build();
+        }
     }
 
     @Path("exit")
@@ -81,11 +98,15 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response postExit(String nodoString) {
+        nodes = Nodes.getInstance();
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
         //String[] nodoInfo = nodo.split("-");
-        Nodes.getInstance().rimuoviNodo(nodo);
-        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();
+        synchronized (nodes.nodiInseriti()) {
+            nodes.rimuoviNodo(nodo);
+            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();
+
+        }
     }
 
     @Path("token")
@@ -93,33 +114,66 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response postToken(String tokenString) {
+        accelerometerBuffer = AccelerometerBuffer.getInstance();
+        lightBuffer = LightBuffer.getInstance();
+        temperatureBuffer = TemperatureBuffer.getInstance();
         Gson gson = new Gson();
         Token token = gson.fromJson(tokenString, Token.class);
-        if (!GatewayBuffer.getInstance().addMisurazioni(token.getBuffer())) {
+        for (Measurement m : token.getBuffer()) {
+            switch (m.getType()) {
 
-            return Response.status(Response.Status.NOT_ACCEPTABLE).build();
-
-        } else {
-
-            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(GatewayBuffer.getInstance().getMisurazioni())).build();
-
+                case "accelerometer":
+                    synchronized (accelerometerBuffer.getBuffer()) {
+                        accelerometerBuffer.addMisurazione(m);
+                        break;
+                    }
+                case "light":
+                    synchronized (lightBuffer.getBuffer()) {
+                        lightBuffer.addMisurazione(m);
+                        break;
+                    }
+                case "temperature":
+                    synchronized (temperatureBuffer.getBuffer()) {
+                        temperatureBuffer.addMisurazione(m);
+                        break;
+                    }
+            }
         }
+        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(accelerometerBuffer.getMisurazioni() + lightBuffer.getMisurazioni() + temperatureBuffer.getMisurazioni())).build();
+
     }
 
     @Path("misurazioni")
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response clientQueryMeasurement() {
+        accelerometerBuffer = AccelerometerBuffer.getInstance();
+        lightBuffer = LightBuffer.getInstance();
+        temperatureBuffer = TemperatureBuffer.getInstance();
         Gson gson = new Gson();
-        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(GatewayBuffer.getInstance().getList())).build();
+        HashMap<String, List<Measurement>> measurementBuffer = new HashMap<>();
+        synchronized (accelerometerBuffer.getBuffer()) {
+            measurementBuffer.putAll(accelerometerBuffer.getBuffer());
+        }
+        synchronized (lightBuffer.getBuffer()) {
+            measurementBuffer.putAll(lightBuffer.getBuffer());
+        }
+        synchronized (temperatureBuffer.getBuffer()) {
+            measurementBuffer.putAll(temperatureBuffer.getBuffer());
+        }
+        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(measurementBuffer)).build();
     }
 
     @Path("nodi")
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response clientQueryNodes() {
+
+        nodes = Nodes.getInstance();
         Gson gson = new Gson();
-        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();
+        synchronized (nodes.nodiInseriti()) {
+            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(nodes.nodiInseriti())).build();
+        }
     }
 
     @Path("misurazioniID")
@@ -127,10 +181,31 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response clientQueryID(String id) {
+        accelerometerBuffer = AccelerometerBuffer.getInstance();
+        lightBuffer = LightBuffer.getInstance();
+        temperatureBuffer = TemperatureBuffer.getInstance();
+        nodes = Nodes.getInstance();
         Gson gson = new Gson();
         String idString = gson.fromJson(id, String.class);
         System.out.println(idString);
-        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(GatewayBuffer.getInstance().getListByID(idString))).build();
+        NodoInfo nodo = nodes.nodiRegistrati().get(idString);
+        String type = nodo.getType();
+        switch (type) {
+            case "accelerometer":
+                synchronized (accelerometerBuffer.getBuffer()) {
+                    return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(accelerometerBuffer.getListByID(idString))).build();
+                }
+            case "light":
+                synchronized (lightBuffer.getBuffer()) {
+                    return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(lightBuffer.getListByID(idString))).build();
+                }
+            case "temperature":
+                synchronized (temperatureBuffer.getBuffer()) {
+                    return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(temperatureBuffer.getListByID(idString))).build();
+                }
+            default:
+                return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+        }
     }
 
     @Path("misurazioniType")
@@ -138,12 +213,31 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response clientQueryType(String type) {
+        accelerometerBuffer = AccelerometerBuffer.getInstance();
+        lightBuffer = LightBuffer.getInstance();
+        temperatureBuffer = TemperatureBuffer.getInstance();
+
 
         Gson gson = new Gson();
         String typeString = gson.fromJson(type, String.class);
         System.out.println(typeString);
+        switch (typeString) {
+            case "accelerometer":
+                synchronized (accelerometerBuffer.getBuffer()) {
+                    return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(accelerometerBuffer.getBuffer())).build();
+                }
+            case "light":
+                synchronized (lightBuffer.getBuffer()) {
+                    return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(lightBuffer.getBuffer())).build();
+                }
+            case "temperature":
+                synchronized (temperatureBuffer.getBuffer()) {
+                    return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(temperatureBuffer.getBuffer())).build();
+                }
+            default:
+                return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+        }
 
-        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(GatewayBuffer.getInstance().getListByType(typeString))).build();
     }
 
     /**

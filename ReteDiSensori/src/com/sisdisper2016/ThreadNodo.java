@@ -101,7 +101,11 @@ public class ThreadNodo extends Thread {
                 if (nodo.isExiting()) {
                     System.out.println("NO MARIA IO ESCO!");
                     esciRete(senderAddr, senderPort);
+                    if((nodo.getNeighbour()).equals(nodo.getAddress() + "-" + nodo.getListeningPort())){
+                        return;
+                    }
                 }
+               
                 Message messageOut = new Message("token", nodo.getAddress(), "" + nodo.getListeningPort(), gson.toJson(token));
                 nodo.inviaMessaggio(messageOut, neighbourData[0], neighbourData[1]);
             }
@@ -136,8 +140,9 @@ public class ThreadNodo extends Thread {
     }
 
     public void esciRete(String prevAddr, String prevPort) throws IOException, InterruptedException {
-        if (!(prevAddr + "-" + prevPort).equals(nodo.getAddress() + "-" + nodo.getListeningPort())) {
-
+        System.out.println(prevAddr +"-"+ prevPort);
+        if (!(nodo.getNeighbour()).equals(nodo.getAddress() + "-" + nodo.getListeningPort())) {
+            System.out.println("non sono solo");
             synchronized (nodo.getAck()) {
                 Message message = new Message("changeNext", nodo.getAddress(), "" + nodo.getListeningPort(), nodo.getNeighbour());
                 nodo.inviaMessaggio(message, prevAddr, prevPort);
@@ -154,8 +159,6 @@ public class ThreadNodo extends Thread {
         Gson gson = new Gson();
         answer = target.path("rest").path("nodes").path("exit").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo.getNodoInfo()), MediaType.APPLICATION_JSON));
         nodo.getServerSocket().close();
-        //nodo.setExiting(false);
-        //System.exit(0);
     }
 
     public void InserisciNodo(NodoInfo newNodo) throws IOException, InterruptedException {

@@ -9,6 +9,9 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.net.ConnectException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -99,12 +102,17 @@ public class GatewayClient {
     public static void queryMisurazioni(WebTarget target) {
         Gson gson = new Gson();
         Response answer = target.path("rest").path("nodes").path("misurazioni").request(MediaType.APPLICATION_JSON).get();
-        ArrayList list = gson.fromJson(answer.readEntity(String.class), ArrayList.class);
-        if (list.isEmpty()) {
+        Type t = new TypeToken<HashMap<String,List<Measurement>>>(){}.getType();
+        Map map = gson.fromJson(answer.readEntity(String.class), t);
+        if (map.isEmpty()) {
             System.out.println("NESSUNA MISURAZIONE");
         } else {
-            for (Object o : list) {
-                System.out.println(o);
+            for (Object id : map.keySet()) {
+                System.out.println("ID NODO: " + id);
+                System.out.println("MISURAZIONI:");
+                for(Measurement m : (List<Measurement>)map.get(id)){
+                System.out.println("id="+m.getId()+", "+"type="+m.getType()+", "+"value="+m.getValue()+", "+"timestamp="+m.getTimestamp());
+                }
             }
         }
     }
@@ -125,14 +133,13 @@ public class GatewayClient {
     public static void queryNodi(WebTarget target) {
         Gson gson = new Gson();
         Response answer = target.path("rest").path("nodes").path("nodi").request(MediaType.APPLICATION_JSON).get();
-        Type t = new TypeToken<ArrayList<NodoInfo>>() {
-        }.getType();
-        ArrayList list = gson.fromJson(answer.readEntity(String.class), t);
-        if (list.isEmpty()) {
+        Type t = new TypeToken<HashMap<String,NodoInfo>>(){}.getType();
+        Map map = gson.fromJson(answer.readEntity(String.class), t);
+        if (map.isEmpty()) {
             System.out.println("NESSUN NODO NELLA RETE");
         } else {
-            for (Object o : list) {
-                System.out.println(o);
+            for (Object o : map.keySet()) {
+                System.out.println(map.get(o));
             }
         }
     }
@@ -140,12 +147,17 @@ public class GatewayClient {
     private static void queryMisurazioniType(WebTarget target, String type) {
         Gson gson = new Gson();
         Response answer = target.path("rest").path("nodes").path("misurazioniType").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(type), MediaType.APPLICATION_JSON));
-        ArrayList list = gson.fromJson(answer.readEntity(String.class), ArrayList.class);
-        if (list.isEmpty()) {
+        Type t = new TypeToken<HashMap<String,List<Measurement>>>(){}.getType();
+        Map map = gson.fromJson(answer.readEntity(String.class), t);
+        if (map.isEmpty()) {
             System.out.println("NESSUNA MISURAZIONE");
         } else {
-            for (Object o : list) {
-                System.out.println(o);
+            for (Object id : map.keySet()) {
+                System.out.println("ID NODO: " + id);
+                System.out.println("MISURAZIONI:");
+                for(Measurement m : (List<Measurement>)map.get(id)){
+                System.out.println("id="+m.getId()+", "+"type="+m.getType()+", "+"value="+m.getValue()+", "+"timestamp="+m.getTimestamp());
+                }
             }
         }
     }
