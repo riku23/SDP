@@ -4,10 +4,12 @@ import com.google.common.reflect.TypeToken;
 import java.net.URI;
 import com.google.gson.Gson;
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.net.ConnectException;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,6 +61,7 @@ public class GatewayClient {
                             + "misurazioniID - visualizza le misurazioni di uno specifico sensore.\n"
                             + "misurazioniTipo - visualizza le misurazioni di una specifica tipoliga di sensore.\n"
                             + "nodi - visualizza l'elenco dei nodi presenti nella rete.\n"
+                            + "uscitaNodo - ferma e rimuole dalla rete il nodo con l'ID specificato\n"
                             + "logout - effettua il logout");
                     break;
                 case "misurazioni":
@@ -67,6 +70,12 @@ public class GatewayClient {
 
                 case "nodi":
                     queryNodi(target);
+                    break;
+                
+                case "uscitaNodo":
+                    System.out.print("ID: ");
+                    String exitId = stdin.readLine();
+                    queryUscitaNodo(target,exitId);
                     break;
                 case "misurazioniID":
                     System.out.print("ID: ");
@@ -161,6 +170,27 @@ public class GatewayClient {
             }
         }
     }
+    
+    private static void queryUscitaNodo(WebTarget target, String id) throws IOException{
+        Gson gson = new Gson();
+        Response answer = target.path("rest").path("nodes").path("nodoID").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(id), MediaType.APPLICATION_JSON));
+        if(answer.getStatus() == 202){
+        NodoInfo nodo = gson.fromJson(answer.readEntity(String.class), NodoInfo.class);
+        System.out.println(nodo);
+        Message message = new Message("exit", "", "" + "", "");
+        String messageString = gson.toJson(message);
+        String portString = nodo.getPort();
+        int port = Integer.parseInt(portString);
+        Socket clientSocket = new Socket(nodo.getAddress(), port);
+        DataOutputStream outToServer = new DataOutputStream((clientSocket.getOutputStream()));
+        outToServer.writeBytes(messageString + '\n');
+        clientSocket.close();
+        }else{
+            System.out.println("NODO NON PRESENTE NELLA RETE");
+        }
+    }
+        
+    
 
     private static void logout(WebTarget target, String user) {
             Gson gson = new Gson();

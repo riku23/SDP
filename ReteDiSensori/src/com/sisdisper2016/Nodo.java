@@ -37,6 +37,7 @@ import org.glassfish.jersey.client.ClientConfig;
  * @author Tozio23
  */
 public class Nodo {
+
     private ServerSocket serverSocket;
     private int[] ackCounter;
     private static boolean exiting;
@@ -51,11 +52,12 @@ public class Nodo {
     private Simulator simulatorInstance;
     private BufferImplementation bufferImpl;
     private List<Thread> threads;
+
     //private static MeasurementBuffer buffer;
     public Nodo() {
     }
 
-    public Nodo(String id, String nodeType,String address, String listeningPort) {
+    public Nodo(String id, String nodeType, String address, String listeningPort) {
         this.id = id;
         this.nodeType = nodeType;
         this.address = address;
@@ -103,46 +105,34 @@ public class Nodo {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-
         BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
         Nodo n = new Nodo(args[0], args[1], args[2], args[3]);
         System.out.println("ID NODO: " + n.getId());
         System.out.println("TIPOLOGIA NODO: " + n.getType());
         System.out.println("INDIRIZZO NODO: " + n.getAddress());
-        
-        System.out.println("PORTA DI ASCOLTO: "+n.getServerSocket().getLocalPort());
+
+        System.out.println("PORTA DI ASCOLTO: " + n.getServerSocket().getLocalPort());
         ThreadServer threadNodoServer = new ThreadServer(n.getServerSocket(), "server", n);
         threadNodoServer.start();
         registraNodo(n);
 
-        
-
-        
-        
-        //String command = stdin.readLine();
-        //if (command.equals("START")){
-
-          while(!exiting){
-              String command = stdin.readLine();
-              if(command.equals("exit")){
-                  System.out.println("KILL ME");
-                  exiting = true;
-                  n.getSimulator().stopMeGently();
-     
-              }
-              
-          }
-          
+        while (!n.isExiting()) {
+            String command = stdin.readLine();
+            if (command.equals("exit")) {
+                System.out.println("KILL ME");
+                n.setExiting(true);
+                n.getSimulator().stopMeGently();
+            }
+        }
 
     }
-    
-    
-    public static void registraNodo(Nodo n) throws IOException{
+
+    public static void registraNodo(Nodo n) throws IOException {
         Response answer;
         ClientConfig config = new ClientConfig();
         Client client = ClientBuilder.newClient(config);
         WebTarget target = client.target(getBaseURI());
-        
+
         Gson gson = new Gson();
         answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
         try {
@@ -151,35 +141,37 @@ public class Nodo {
             Logger.getLogger(Nodo.class.getName()).log(Level.SEVERE, null, ex);
         }
         if (answer.getStatus() == 202) {
-            Type t = new TypeToken<HashMap<String,NodoInfo>>() {}.getType();
-            HashMap<String,NodoInfo> nodesList = gson.fromJson(answer.readEntity(String.class),t);
+            Type t = new TypeToken<HashMap<String, NodoInfo>>() {
+            }.getType();
+            HashMap<String, NodoInfo> nodesList = gson.fromJson(answer.readEntity(String.class), t);
             System.out.println(nodesList);
-            if(nodesList.isEmpty()){
-                n.SetNeighbour(n.getAddress()+"-"+n.getListeningPort());
+            if (nodesList.isEmpty()) {
+                n.SetNeighbour(n.getAddress() + "-" + n.getListeningPort());
                 System.out.println("CREO IL TOKEN");
                 token = Token.getInstance();
                 String tokenString = gson.toJson(token);
                 String[] neighbourData = n.getNeighbour().split("-");
-                Message message = new Message("token",n.getAddress(),""+n.getListeningPort(),tokenString);
-                n.inviaMessaggio(message, neighbourData[0],neighbourData[1]);
+                Message message = new Message("token", n.getAddress(), "" + n.getListeningPort(), tokenString);
+                n.inviaMessaggio(message, neighbourData[0], neighbourData[1]);
                 //n.inviaMessaggio("token:::"+n.getAddress()+":::"+n.getListeningPort()+":::"+tokenString, neighbourData[0], neighbourData[1]);
-            }else{
+            } else {
                 List<String> keysAsArray = new ArrayList<>(nodesList.keySet());
                 Random r = new Random();
                 NodoInfo nodeInfo = (NodoInfo) nodesList.get(keysAsArray.get(r.nextInt(keysAsArray.size())));
                 System.out.println(nodeInfo);
                 String nodoInfoString = gson.toJson(n.getNodoInfo());
-                Message message = new Message("insert", n.getAddress(), ""+n.getListeningPort(), nodoInfoString);
+                Message message = new Message("insert", n.getAddress(), "" + n.getListeningPort(), nodoInfoString);
                 n.inviaMessaggio(message, nodeInfo.getAddress(), nodeInfo.getPort());
                 //n.inviaMessaggio("insert:::"+n.getAddress()+":::"+n.getListeningPort()+":::"+n.getId()+"-"+n.getAddress()+"-"+n.getListeningPort(),nodeInfo[1], nodeInfo[2]);
-                
-                }
-            
+
+            }
+
         } else {
             System.out.println("REGISTRAZIONE FALLITA");
         }
     }
-    public void inviaMessaggio(Message message,String address, String toPort) throws IOException {
+
+    public void inviaMessaggio(Message message, String address, String toPort) throws IOException {
         Gson gson = new Gson();
         String messageString = gson.toJson(message);
         String portString = toPort;
@@ -189,23 +181,27 @@ public class Nodo {
         outToServer.writeBytes(messageString + '\n');
         clientSocket.close();
     }
-    public NodoInfo getNodoInfo(){
+
+    public NodoInfo getNodoInfo() {
         return this.nodoInfo;
-    }    
+    }
+
     public String getId() {
         return this.id;
     }
-    
-    public Simulator getSimulator(){
+
+    public Simulator getSimulator() {
         return this.simulatorInstance;
     }
-    
-    public String getType(){
+
+    public String getType() {
         return this.nodeType;
     }
-    public String getAddress(){
+
+    public String getAddress() {
         return this.address;
     }
+
     private static URI getBaseURI() {
         return UriBuilder.fromUri("http://localhost:8084/Gateway").build();
     }
@@ -213,53 +209,52 @@ public class Nodo {
     public int getListeningPort() {
         return this.listeningPort;
     }
-    
-    public ServerSocket getServerSocket(){
+
+    public ServerSocket getServerSocket() {
         return this.serverSocket;
     }
-    
 
-    
-    public String getNeighbour(){
+    public String getNeighbour() {
         return this.next;
     }
-    
-    public BufferImplementation getBuffer(){
+
+    public BufferImplementation getBuffer() {
         return this.bufferImpl;
     }
-    
-    public synchronized void SetNeighbour(String neighbour){
+
+    public synchronized void SetNeighbour(String neighbour) {
         this.next = neighbour;
     }
-    
-    public synchronized void addPending(NodoInfo s){
+
+    public synchronized void addPending(NodoInfo s) {
         pending.add(s);
     }
-    
-    public synchronized void removePending(NodoInfo s){
+
+    public synchronized void removePending(NodoInfo s) {
         pending.remove(s);
     }
-    public List<NodoInfo> getPending(){
+
+    public List<NodoInfo> getPending() {
         return this.pending;
     }
-    
-    public boolean isExiting(){
+
+    public boolean isExiting() {
         return this.exiting;
     }
-    
-    public void setExiting(boolean bool){
+
+    public void setExiting(boolean bool) {
         this.exiting = bool;
     }
-    
-    public void addThread(Thread thread){
+
+    public void addThread(Thread thread) {
         this.threads.add(thread);
     }
-    
-    public List<Thread> getThreads(){
+
+    public List<Thread> getThreads() {
         return this.threads;
     }
-    
-    public int[] getAck(){
+
+    public int[] getAck() {
         return this.ackCounter;
     }
 }

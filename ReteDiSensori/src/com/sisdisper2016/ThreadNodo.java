@@ -132,6 +132,13 @@ public class ThreadNodo extends Thread {
                         
                     }
                 }
+              
+            }
+            
+            if(header.equals("exit")){
+                    nodo.setExiting(true);
+
+                
             }
 
         } catch (IOException | InterruptedException ex) {
@@ -149,6 +156,7 @@ public class ThreadNodo extends Thread {
                 nodo.getAck()[0]++;
                 //System.out.println("ACK: "+ nodo.getAck()[0]);
                 nodo.getAck().wait();
+                
             }
 
         }
@@ -159,6 +167,7 @@ public class ThreadNodo extends Thread {
         Gson gson = new Gson();
         answer = target.path("rest").path("nodes").path("exit").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo.getNodoInfo()), MediaType.APPLICATION_JSON));
         nodo.getServerSocket().close();
+        
     }
 
     public void InserisciNodo(NodoInfo newNodo) throws IOException, InterruptedException {
