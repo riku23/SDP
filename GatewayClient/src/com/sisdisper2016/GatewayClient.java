@@ -25,7 +25,7 @@ import org.glassfish.jersey.client.ClientConfig;
 
 public class GatewayClient {
 
-    public static void main(String[] args) throws IOException{
+    public static void main(String[] args) throws IOException {
 
         String userID = "";
         boolean logged = false;
@@ -36,7 +36,7 @@ public class GatewayClient {
         BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
         System.out.println("LOGIN");
         while (!logged) {
-            
+
             System.out.print("INSERISCI NOME UTENTE: ");
             String user = stdin.readLine();
             Response answer = target.path("rest").path("users").path("login").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(user), MediaType.APPLICATION_JSON));
@@ -48,8 +48,7 @@ public class GatewayClient {
             } else {
                 System.out.println("NOME UTENTE GIA' IN USO SCEGLIERNE UN ALTRO");
             }
-        
-      
+
         }
         System.out.println("INSERISCI UN COMANDO:");
         System.out.println("DIGITA 'help' PER VISUALIZZARE L'ELENCO DEI COMANDI DISPONIBILI");
@@ -59,6 +58,7 @@ public class GatewayClient {
                 case "help":
                     System.out.println("misurazioni - visualizza le misurazioni registrate.\n"
                             + "misurazioniID - visualizza le misurazioni di uno specifico sensore.\n"
+                            + "ultimaMisurazioneID - visualizza l'ultima misurazione di uno specifico nodo.\n"
                             + "misurazioniTipo - visualizza le misurazioni di una specifica tipoliga di sensore.\n"
                             + "nodi - visualizza l'elenco dei nodi presenti nella rete.\n"
                             + "uscitaNodo - ferma e rimuole dalla rete il nodo con l'ID specificato\n"
@@ -71,16 +71,21 @@ public class GatewayClient {
                 case "nodi":
                     queryNodi(target);
                     break;
-                
+
                 case "uscitaNodo":
                     System.out.print("ID: ");
                     String exitId = stdin.readLine();
-                    queryUscitaNodo(target,exitId);
+                    queryUscitaNodo(target, exitId);
                     break;
                 case "misurazioniID":
                     System.out.print("ID: ");
                     String id = stdin.readLine();
                     queryMisurazioniID(target, id);
+                    break;
+                case "ultimaMisurazioneID":
+                    System.out.print("ID: ");
+                    String lastId = stdin.readLine();
+                    queryUltimaMisurazioneID(target, lastId);
                     break;
                 case "misurazioniTipo":
                     System.out.print("TIPO: ");
@@ -99,8 +104,7 @@ public class GatewayClient {
             }
 
         }
-        
- 
+
         //String loginAnswer = target.path("rest").path("users").path("login").path(id).request().accept(MediaType.TEXT_PLAIN).get(String.class);
         //System.out.println(response);
         //System.out.println(storageAnswer.CountConnections());
@@ -111,7 +115,8 @@ public class GatewayClient {
     public static void queryMisurazioni(WebTarget target) {
         Gson gson = new Gson();
         Response answer = target.path("rest").path("nodes").path("misurazioni").request(MediaType.APPLICATION_JSON).get();
-        Type t = new TypeToken<HashMap<String,List<Measurement>>>(){}.getType();
+        Type t = new TypeToken<HashMap<String, List<Measurement>>>() {
+        }.getType();
         Map map = gson.fromJson(answer.readEntity(String.class), t);
         if (map.isEmpty()) {
             System.out.println("NESSUNA MISURAZIONE");
@@ -119,8 +124,8 @@ public class GatewayClient {
             for (Object id : map.keySet()) {
                 System.out.println("ID NODO: " + id);
                 System.out.println("MISURAZIONI:");
-                for(Measurement m : (List<Measurement>)map.get(id)){
-                System.out.println("id="+m.getId()+", "+"type="+m.getType()+", "+"value="+m.getValue()+", "+"timestamp="+m.getTimestamp());
+                for (Measurement m : (List<Measurement>) map.get(id)) {
+                    System.out.println("id=" + m.getId() + ", " + "type=" + m.getType() + ", " + "value=" + m.getValue() + ", " + "timestamp=" + m.getTimestamp());
                 }
             }
         }
@@ -139,10 +144,27 @@ public class GatewayClient {
         }
     }
 
+    private static void queryUltimaMisurazioneID(WebTarget target, String id) {
+        Gson gson = new Gson();
+        Response answer = target.path("rest").path("nodes").path("ultimaMisurazioneID").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(id), MediaType.APPLICATION_JSON));
+        if (answer.getStatus() == 202) {
+            Measurement m = gson.fromJson(answer.readEntity(String.class), Measurement.class);
+            if (m == null) {
+                System.out.println("NESSUNA MISURAZIONE");
+            } else {
+                System.out.println("id=" + m.getId() + ", " + "type=" + m.getType() + ", " + "value=" + m.getValue() + ", " + "timestamp=" + m.getTimestamp());
+            }
+        } else {
+            String errorLog = gson.fromJson(answer.readEntity(String.class), String.class);
+            System.out.println(errorLog);
+        }
+    }
+
     public static void queryNodi(WebTarget target) {
         Gson gson = new Gson();
         Response answer = target.path("rest").path("nodes").path("nodi").request(MediaType.APPLICATION_JSON).get();
-        Type t = new TypeToken<HashMap<String,NodoInfo>>(){}.getType();
+        Type t = new TypeToken<HashMap<String, NodoInfo>>() {
+        }.getType();
         Map map = gson.fromJson(answer.readEntity(String.class), t);
         if (map.isEmpty()) {
             System.out.println("NESSUN NODO NELLA RETE");
@@ -156,45 +178,49 @@ public class GatewayClient {
     private static void queryMisurazioniType(WebTarget target, String type) {
         Gson gson = new Gson();
         Response answer = target.path("rest").path("nodes").path("misurazioniType").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(type), MediaType.APPLICATION_JSON));
-        Type t = new TypeToken<HashMap<String,List<Measurement>>>(){}.getType();
-        Map map = gson.fromJson(answer.readEntity(String.class), t);
+        Type t = new TypeToken<HashMap<String, List<Measurement>>>() {
+        }.getType();
+        Map map = gson.fromJson(answer.readEntity(String.class
+        ), t);
         if (map.isEmpty()) {
             System.out.println("NESSUNA MISURAZIONE");
         } else {
             for (Object id : map.keySet()) {
                 System.out.println("ID NODO: " + id);
                 System.out.println("MISURAZIONI:");
-                for(Measurement m : (List<Measurement>)map.get(id)){
-                System.out.println("id="+m.getId()+", "+"type="+m.getType()+", "+"value="+m.getValue()+", "+"timestamp="+m.getTimestamp());
+                for (Measurement m : (List<Measurement>) map.get(id)) {
+                    System.out.println("id=" + m.getId() + ", " + "type=" + m.getType() + ", " + "value=" + m.getValue() + ", " + "timestamp=" + m.getTimestamp());
                 }
             }
         }
     }
-    
-    private static void queryUscitaNodo(WebTarget target, String id) throws IOException{
+
+    private static void queryUscitaNodo(WebTarget target, String id) throws IOException {
         Gson gson = new Gson();
         Response answer = target.path("rest").path("nodes").path("nodoID").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(id), MediaType.APPLICATION_JSON));
-        if(answer.getStatus() == 202){
-        NodoInfo nodo = gson.fromJson(answer.readEntity(String.class), NodoInfo.class);
-        System.out.println(nodo);
-        Message message = new Message("exit", "", "" + "", "");
-        String messageString = gson.toJson(message);
-        String portString = nodo.getPort();
-        int port = Integer.parseInt(portString);
-        Socket clientSocket = new Socket(nodo.getAddress(), port);
-        DataOutputStream outToServer = new DataOutputStream((clientSocket.getOutputStream()));
-        outToServer.writeBytes(messageString + '\n');
-        clientSocket.close();
-        }else{
-            System.out.println("NODO NON PRESENTE NELLA RETE");
+
+        if (answer.getStatus() == 202) {
+            NodoInfo nodo = gson.fromJson(answer.readEntity(String.class
+            ), NodoInfo.class
+            );
+            System.out.println(nodo);
+            Message message = new Message("exit", "", "" + "", "");
+            String messageString = gson.toJson(message);
+            String portString = nodo.getPort();
+            int port = Integer.parseInt(portString);
+            Socket clientSocket = new Socket(nodo.getAddress(), port);
+            DataOutputStream outToServer = new DataOutputStream((clientSocket.getOutputStream()));
+            outToServer.writeBytes(messageString + '\n');
+            clientSocket.close();
+        } else {
+            String errorLog = gson.fromJson(answer.readEntity(String.class), String.class);
+            System.out.println(errorLog);
         }
     }
-        
-    
 
     private static void logout(WebTarget target, String user) {
-            Gson gson = new Gson();
-            Response answer = target.path("rest").path("users").path("logout").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(user), MediaType.APPLICATION_JSON));
+        Gson gson = new Gson();
+        Response answer = target.path("rest").path("users").path("logout").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(user), MediaType.APPLICATION_JSON));
     }
 
     private static URI getBaseURI() {

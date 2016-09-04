@@ -34,17 +34,12 @@ public class ThreadNodo extends Thread {
 
     private boolean stopped = false;
     private final Nodo nodo;
-    private final String threadType;
     private final Socket estabSocket;
     private String clientSentence;
-    private String capitalizedSentence;
-    private final static String MESSAGE1 = "ciao";
-    private final static String MESSAGE2 = "chain";
 
     //COSTRUTTORE
-    public ThreadNodo(Socket socket, String type, Nodo n) {
+    public ThreadNodo(Socket socket, Nodo n) {
         this.estabSocket = socket;
-        this.threadType = type;
         this.nodo = n;
     }
 
@@ -136,8 +131,10 @@ public class ThreadNodo extends Thread {
             }
             
             if(header.equals("exit")){
+                if(!nodo.isExiting()){
                     nodo.setExiting(true);
-
+                    nodo.getConsole().stop();
+                }
                 
             }
 

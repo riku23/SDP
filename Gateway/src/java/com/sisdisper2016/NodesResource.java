@@ -189,7 +189,7 @@ public class NodesResource {
         synchronized (nodes.nodiInseriti()) {
             NodoInfo nodo = nodes.nodiInseriti().get(idString);
             if (nodo == null) {
-                return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+                return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NODO NON PRESENTE NELLA RETE")).build();
             } else {
                 return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(nodo)).build();
             }
@@ -213,18 +213,90 @@ public class NodesResource {
         switch (type) {
             case "accelerometer":
                 synchronized (accelerometerBuffer.getBuffer()) {
-                    return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(accelerometerBuffer.getListByID(idString))).build();
+                    List<Measurement> list = accelerometerBuffer.getListByID(idString);
+                    if (list != null) {
+                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list)).build();
+                    } else {
+                        return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE")).build();
+
+                    }
                 }
             case "light":
                 synchronized (lightBuffer.getBuffer()) {
-                    return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(lightBuffer.getListByID(idString))).build();
+                    List<Measurement> list = lightBuffer.getListByID(idString);
+                    if (list != null) {
+                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list)).build();
+                    } else {
+                        return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE")).build();
+
+                    }
                 }
             case "temperature":
                 synchronized (temperatureBuffer.getBuffer()) {
-                    return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(temperatureBuffer.getListByID(idString))).build();
+                    List<Measurement> list = temperatureBuffer.getListByID(idString);
+                    if (list != null) {
+                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list)).build();
+                    } else {
+                        return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE")).build();
+
+                    }
                 }
             default:
                 return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+        }
+    }
+
+    @Path("ultimaMisurazioneID")
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response clientQueryLastID(String id) {
+        accelerometerBuffer = AccelerometerBuffer.getInstance();
+        lightBuffer = LightBuffer.getInstance();
+        temperatureBuffer = TemperatureBuffer.getInstance();
+        nodes = Nodes.getInstance();
+        Gson gson = new Gson();
+        String idString = gson.fromJson(id, String.class);
+        System.out.println(idString);
+        NodoInfo nodo = nodes.nodiRegistrati().get(idString);
+        if (nodo != null) {
+            String type = nodo.getType();
+            switch (type) {
+                case "accelerometer":
+                    synchronized (accelerometerBuffer.getBuffer()) {
+                        List<Measurement> list = accelerometerBuffer.getListByID(idString);
+                        if (list != null) {
+                            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list.get(list.size() - 1))).build();
+                        } else {
+                            return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE")).build();
+
+                        }
+                    }
+                case "light":
+                    synchronized (lightBuffer.getBuffer()) {
+                        List<Measurement> list = lightBuffer.getListByID(idString);
+                        if (list != null) {
+                            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list.get(list.size() - 1))).build();
+                        } else {
+                            return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE")).build();
+
+                        }
+                    }
+                case "temperature":
+                    synchronized (temperatureBuffer.getBuffer()) {
+                        List<Measurement> list = temperatureBuffer.getListByID(idString);
+                        if (list != null) {
+                            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list.get(list.size() - 1))).build();
+                        } else {
+                            return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE")).build();
+
+                        }
+                    }
+                default:
+                    return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+            }
+        } else {
+            return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NODO NON PRESENTE NELLA RETE")).build();
         }
     }
 

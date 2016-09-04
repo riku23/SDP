@@ -40,7 +40,7 @@ public class Nodo {
 
     private ServerSocket serverSocket;
     private int[] ackCounter;
-    private static boolean exiting;
+    private boolean exiting;
     private List<NodoInfo> pending;
     static Token token;
     private String next;
@@ -52,6 +52,8 @@ public class Nodo {
     private Simulator simulatorInstance;
     private BufferImplementation bufferImpl;
     private List<Thread> threads;
+    private BufferedReader stdin;
+    private ThreadConsole consoleThread;
 
     //private static MeasurementBuffer buffer;
     public Nodo() {
@@ -101,29 +103,25 @@ public class Nodo {
         } catch (IOException ex) {
             Logger.getLogger(Nodo.class.getName()).log(Level.SEVERE, null, ex);
         }
+        this.stdin = new BufferedReader(new InputStreamReader(System.in));
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
         Nodo n = new Nodo(args[0], args[1], args[2], args[3]);
         System.out.println("ID NODO: " + n.getId());
         System.out.println("TIPOLOGIA NODO: " + n.getType());
         System.out.println("INDIRIZZO NODO: " + n.getAddress());
 
         System.out.println("PORTA DI ASCOLTO: " + n.getServerSocket().getLocalPort());
-        ThreadServer threadNodoServer = new ThreadServer(n.getServerSocket(), "server", n);
+        ThreadConsole console = new ThreadConsole(n);
+        console.start();
+        n.SetConsole(console);
+        ThreadServer threadNodoServer = new ThreadServer(n.getServerSocket(), n);
         threadNodoServer.start();
+        
         registraNodo(n);
 
-        while (!n.isExiting()) {
-            String command = stdin.readLine();
-            if (command.equals("exit")) {
-                System.out.println("KILL ME");
-                n.setExiting(true);
-                n.getSimulator().stopMeGently();
-            }
-        }
 
     }
 
@@ -168,6 +166,7 @@ public class Nodo {
 
         } else {
             System.out.println("REGISTRAZIONE FALLITA");
+            System.exit(0);
         }
     }
 
@@ -257,4 +256,17 @@ public class Nodo {
     public int[] getAck() {
         return this.ackCounter;
     }
+
+    public BufferedReader getReader() {
+        return this.stdin;
+    }
+
+    public ThreadConsole getConsole() {
+        return this.consoleThread;
+    }
+
+    public void SetConsole(ThreadConsole thread) {
+        this.consoleThread = thread;
+    }
+
 }

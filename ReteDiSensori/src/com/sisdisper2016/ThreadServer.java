@@ -18,12 +18,12 @@ import java.util.logging.Logger;
 public class ThreadServer extends Thread {
 
     private Nodo nodo;
-    private String threadType;
+
     private ServerSocket serverSocket;
 
-    public ThreadServer(ServerSocket socket, String type, Nodo n) {
+    public ThreadServer(ServerSocket socket, Nodo n) {
         this.serverSocket = socket;
-        this.threadType = type;
+
         this.nodo = n;
     }
 
@@ -33,7 +33,7 @@ public class ThreadServer extends Thread {
         while (true) {
             try {
                 Socket estabSocket = serverSocket.accept();
-                ThreadNodo threadNodo = new ThreadNodo(estabSocket, "server", nodo);
+                ThreadNodo threadNodo = new ThreadNodo(estabSocket, nodo);
                 threadNodo.start();
 
             } catch (IOException ex) {
