@@ -10,7 +10,6 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.util.ArrayList;
@@ -63,7 +62,7 @@ public class ThreadNodo extends Thread {
             Thread.sleep(2000);
             if (header.equals("token")) {
                 System.out.println(nodo.getPending());
-                
+
                 synchronized (nodo.getPending()) {
                     temp = new ArrayList<>(nodo.getPending());
                 }
@@ -96,13 +95,16 @@ public class ThreadNodo extends Thread {
                 if (nodo.isExiting()) {
                     System.out.println("NO MARIA IO ESCO!");
                     esciRete(senderAddr, senderPort);
-                    if((nodo.getNeighbour()).equals(nodo.getAddress() + "-" + nodo.getListeningPort())){
+                    if ((nodo.getNeighbour()).equals(nodo.getAddress() + "-" + nodo.getListeningPort())) {
                         return;
                     }
                 }
-               
+
                 Message messageOut = new Message("token", nodo.getAddress(), "" + nodo.getListeningPort(), gson.toJson(token));
                 nodo.inviaMessaggio(messageOut, neighbourData[0], neighbourData[1]);
+                if (nodo.isExiting()) {
+                    System.exit(0);
+                }
             }
             if (header.equals("insert")) {
                 NodoInfo nodoInfo = gson.fromJson(body, NodoInfo.class);
@@ -117,25 +119,22 @@ public class ThreadNodo extends Thread {
             }
 
             if (header.equals("ack")) {
- 
+
                 System.out.println("ACK RICEVUTO");
                 synchronized (nodo.getAck()) {
                     nodo.getAck()[0]--;
                     //System.out.println("ACK: "+ nodo.getAck()[0]);
                     if (nodo.getAck()[0] == 0) {
                         nodo.getAck().notify();
-                        
+
                     }
                 }
-              
+
             }
-            
-            if(header.equals("exit")){
-                if(!nodo.isExiting()){
-                    nodo.setExiting(true);
-                    nodo.getConsole().stop();
-                }
-                
+
+            if (header.equals("exit")) {
+                nodo.setExiting(true);
+
             }
 
         } catch (IOException | InterruptedException ex) {
@@ -144,7 +143,7 @@ public class ThreadNodo extends Thread {
     }
 
     public void esciRete(String prevAddr, String prevPort) throws IOException, InterruptedException {
-        System.out.println(prevAddr +"-"+ prevPort);
+        System.out.println(prevAddr + "-" + prevPort);
         if (!(nodo.getNeighbour()).equals(nodo.getAddress() + "-" + nodo.getListeningPort())) {
             System.out.println("non sono solo");
             synchronized (nodo.getAck()) {
@@ -153,18 +152,27 @@ public class ThreadNodo extends Thread {
                 nodo.getAck()[0]++;
                 //System.out.println("ACK: "+ nodo.getAck()[0]);
                 nodo.getAck().wait();
-                
+                Response answer;
+                ClientConfig config = new ClientConfig();
+                Client client = ClientBuilder.newClient(config);
+                WebTarget target = client.target(getBaseURI());
+                Gson gson = new Gson();
+                answer = target.path("rest").path("nodes").path("exit").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo.getNodoInfo()), MediaType.APPLICATION_JSON));
+                nodo.getServerSocket().close();
+
             }
 
+        } else {
+            Response answer;
+            ClientConfig config = new ClientConfig();
+            Client client = ClientBuilder.newClient(config);
+            WebTarget target = client.target(getBaseURI());
+            Gson gson = new Gson();
+            answer = target.path("rest").path("nodes").path("exit").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo.getNodoInfo()), MediaType.APPLICATION_JSON));
+            //nodo.getServerSocket().close();
+            System.exit(0);
         }
-        Response answer;
-        ClientConfig config = new ClientConfig();
-        Client client = ClientBuilder.newClient(config);
-        WebTarget target = client.target(getBaseURI());
-        Gson gson = new Gson();
-        answer = target.path("rest").path("nodes").path("exit").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo.getNodoInfo()), MediaType.APPLICATION_JSON));
-        nodo.getServerSocket().close();
-        
+
     }
 
     public void InserisciNodo(NodoInfo newNodo) throws IOException, InterruptedException {

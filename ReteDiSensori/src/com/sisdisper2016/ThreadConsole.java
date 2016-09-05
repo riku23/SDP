@@ -6,8 +6,6 @@
 package com.sisdisper2016;
 
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,7 +23,6 @@ public class ThreadConsole extends Thread {
 
     @Override
     public void run() {
-
         while (!nodo.isExiting()) {
             try {
                 String command = nodo.getReader().readLine();
@@ -37,6 +34,7 @@ public class ThreadConsole extends Thread {
             } catch (IOException ex) {
                 Logger.getLogger(ThreadConsole.class.getName()).log(Level.SEVERE, null, ex);
             }
+            
         }
     }
 

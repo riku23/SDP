@@ -37,7 +37,8 @@ public class ThreadServer extends Thread {
                 threadNodo.start();
 
             } catch (IOException ex) {
-                Logger.getLogger(ThreadServer.class.getName()).log(Level.SEVERE, null, ex);
+                //Logger.getLogger(ThreadServer.class.getName()).log(Level.SEVERE, null, ex);
+                System.out.println("LISTENER CHIUSO");
                 break;
             }
 

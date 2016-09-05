@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -51,7 +50,6 @@ public class Nodo {
     private int listeningPort;
     private Simulator simulatorInstance;
     private BufferImplementation bufferImpl;
-    private List<Thread> threads;
     private BufferedReader stdin;
     private ThreadConsole consoleThread;
 
@@ -93,7 +91,6 @@ public class Nodo {
             System.exit(0);
         }
         this.pending = new ArrayList<>();
-        this.threads = new ArrayList<>();
         this.exiting = false;
         this.nodoInfo = new NodoInfo(id, nodeType, new Date(), address, listeningPort);
         this.ackCounter = new int[1];
@@ -101,8 +98,10 @@ public class Nodo {
         try {
             this.serverSocket = new ServerSocket(this.listeningPort);
         } catch (IOException ex) {
-            Logger.getLogger(Nodo.class.getName()).log(Level.SEVERE, null, ex);
+            System.out.println("PORTA GIA' IN USO");
+            System.exit(0);
         }
+         
         this.stdin = new BufferedReader(new InputStreamReader(System.in));
     }
 
@@ -119,9 +118,7 @@ public class Nodo {
         n.SetConsole(console);
         ThreadServer threadNodoServer = new ThreadServer(n.getServerSocket(), n);
         threadNodoServer.start();
-        
         registraNodo(n);
-
 
     }
 
@@ -245,20 +242,17 @@ public class Nodo {
         this.exiting = bool;
     }
 
-    public void addThread(Thread thread) {
-        this.threads.add(thread);
-    }
-
-    public List<Thread> getThreads() {
-        return this.threads;
-    }
-
     public int[] getAck() {
         return this.ackCounter;
     }
 
     public BufferedReader getReader() {
         return this.stdin;
+    }
+
+    public void setReader(BufferedReader reader) {
+        this.stdin = reader;
+
     }
 
     public ThreadConsole getConsole() {
