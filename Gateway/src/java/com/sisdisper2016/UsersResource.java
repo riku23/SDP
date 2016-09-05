@@ -9,6 +9,7 @@ import com.google.gson.Gson;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.UriInfo;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.Produces;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -47,11 +48,11 @@ public class UsersResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response postLogin(String userString) {
         Gson gson = new Gson();
-        String user = gson.fromJson(userString, String.class);
+        UserInfo user = gson.fromJson(userString, UserInfo.class);
         System.out.println(user);
         //String[] nodoInfo = nodo.split("-");
         synchronized (users.getUsers()) {
-            if (users.getUsers().contains(user)) {
+            if (users.getUsers().containsKey(user.getId())) {
 
                 return Response.status(Response.Status.NOT_ACCEPTABLE).build();
                 //return Response.ok(new UserInfo("OK")).build();
@@ -70,7 +71,7 @@ public class UsersResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response postExit(String userString) {
         Gson gson = new Gson();
-        String user = gson.fromJson(userString, String.class);
+        UserInfo user = gson.fromJson(userString, UserInfo.class);
         //String[] nodoInfo = nodo.split("-");
         synchronized (users.getUsers()) {
             users.logout(user);
@@ -78,6 +79,20 @@ public class UsersResource {
         }
     }
 
+    @Path("users")
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getUsers(){
+        Gson gson = new Gson();
+        synchronized(users.getUsers()){
+            
+            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(users.getUsers())).build();
+        }
+    }
+    
+    
+    
+    
     /**
      * PUT method for updating or creating an instance of NodesResource
      *

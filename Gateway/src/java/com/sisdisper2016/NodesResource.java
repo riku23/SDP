@@ -6,6 +6,9 @@
 package com.sisdisper2016;
 
 import com.google.gson.Gson;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.Socket;
 import java.util.HashMap;
 import java.util.List;
 import javax.ws.rs.core.Context;
@@ -33,6 +36,7 @@ public class NodesResource {
     private LightBuffer lightBuffer;
     private TemperatureBuffer temperatureBuffer;
     private Nodes nodes;
+    private Users users;
 
     /**
      * Creates a new instance of GenericResource
@@ -51,7 +55,7 @@ public class NodesResource {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response postRegister(String nodoString) {
+    public Response postRegister(String nodoString) throws IOException {
         nodes = Nodes.getInstance();
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
@@ -69,6 +73,39 @@ public class NodesResource {
                 synchronized (nodes.nodiInseriti()) {
                     if (nodes.nodiInseriti().isEmpty()) {
                         nodes.inserisciNodo(nodo);
+                        broadcastUtenti(nodo, "nodeEnter");
+                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(new HashMap<String, NodoInfo>())).build();
+                    }
+                }
+                System.out.println("NODI REGISTRATI: " + nodes.nodiRegistrati());
+                return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(nodes.nodiInseriti())).build();
+            }
+        }
+    }
+
+    @Path("retry")
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response postRegisterRetry(String nodoString) throws IOException {
+        nodes = Nodes.getInstance();
+        Gson gson = new Gson();
+        NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
+        System.out.println(nodo.toString());
+        //String[] nodoInfo = nodo.split("-");
+        synchronized (nodes.nodiRegistrati()) {
+
+            if (!nodes.nodiRegistrati().containsKey(nodo.getId())) {
+
+                return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+                //return Response.ok(new UserInfo("OK")).build();
+            } else {
+
+                nodes.registraNodo(nodo);
+                synchronized (nodes.nodiInseriti()) {
+                    if (nodes.nodiInseriti().isEmpty()) {
+                        nodes.inserisciNodo(nodo);
+                        broadcastUtenti(nodo,"nodeEnter");
                         return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(new HashMap<String, NodoInfo>())).build();
                     }
                 }
@@ -82,31 +119,59 @@ public class NodesResource {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response postEnter(String nodoString) {
+    public Response postEnter(String nodoString) throws IOException {
         nodes = Nodes.getInstance();
+        users = Users.getInstance();
+        HashMap<String, UserInfo> temp;
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
         //String[] nodoInfo = nodo.split("-");
         synchronized (nodes.nodiInseriti()) {
             nodes.inserisciNodo(nodo);
             System.out.println("NODI INSERITI: " + nodes.nodiInseriti());
-            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(nodes.nodiInseriti())).build();
         }
+        broadcastUtenti(nodo, "nodeEnter");
+            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(nodes.nodiInseriti())).build();
+        
     }
 
     @Path("exit")
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response postExit(String nodoString) {
+    public Response postExit(String nodoString) throws IOException {
         nodes = Nodes.getInstance();
+        users = Users.getInstance();
+        HashMap<String, UserInfo> temp;
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
         //String[] nodoInfo = nodo.split("-");
         synchronized (nodes.nodiInseriti()) {
             nodes.rimuoviNodo(nodo);
-            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();
+        }
+        broadcastUtenti(nodo,"nodeExit");
+        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();
+    }
 
+    public void broadcastUtenti(NodoInfo nodo,String header) throws IOException {
+        users = Users.getInstance();
+        HashMap<String, UserInfo> temp;
+        Gson gson = new Gson();
+        if (!users.getUsers().isEmpty()) {
+            synchronized (users.getUsers()) {
+                temp = new HashMap<>(users.getUsers());
+            }
+            for (String s : temp.keySet()) {
+                Message message = new Message(header, "", "", gson.toJson(nodo));
+                String messageString = gson.toJson(message);
+                String address = users.getUsers().get(s).getAddress();
+                String portString = users.getUsers().get(s).getPort();
+                int port = Integer.parseInt(portString);
+                Socket clientSocket = new Socket(address, port);
+                DataOutputStream outToServer = new DataOutputStream((clientSocket.getOutputStream()));
+                outToServer.writeBytes(messageString + '\n');
+                clientSocket.close();
+            }
         }
     }
 

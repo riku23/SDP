@@ -6,7 +6,9 @@
 package com.sisdisper2016;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -15,9 +17,11 @@ import java.util.List;
 public class Users {
     private static Users instance;
     private List<String> usersList;
+    private Map<String, UserInfo> usersMap;
 
     private Users(){
-        usersList = new ArrayList<>();
+        this.usersList = new ArrayList<>();
+        this.usersMap = new HashMap<>();
     }
     
     public static Users getInstance() {
@@ -27,15 +31,15 @@ public class Users {
         return instance;
     }
     
-    public void registraUtente(String user){
-        usersList.add(user);
+    public void registraUtente(UserInfo user){
+        usersMap.put(user.getId(), user);
     }
-    public List<String> getUsers(){
-        return this.usersList;
+    public Map<String, UserInfo> getUsers(){
+        return this.usersMap;
     }
     
-    public void logout(String user){
-        this.usersList.remove(user);
+    public void logout(UserInfo user){
+        this.usersMap.remove(user.getId());
     }
 
 }

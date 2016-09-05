@@ -8,6 +8,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,11 +23,14 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 import org.glassfish.jersey.client.ClientConfig;
 
+
 public class GatewayClient {
 
     public static void main(String[] args) throws IOException {
-
-        String userID = "";
+        ServerSocket serverSocket = null;
+        String address = args[0];
+        String port = args[1];
+        UserInfo userInfo = new UserInfo(args[0], args[1]);
         boolean logged = false;
         ClientConfig config = new ClientConfig();
         Client client = ClientBuilder.newClient(config);
@@ -38,17 +42,29 @@ public class GatewayClient {
 
             System.out.print("INSERISCI NOME UTENTE: ");
             String user = stdin.readLine();
-            Response answer = target.path("rest").path("users").path("login").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(user), MediaType.APPLICATION_JSON));
+            userInfo.setId(user);
+            Response answer = target.path("rest").path("users").path("login").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(userInfo), MediaType.APPLICATION_JSON));
             if (answer.getStatus() == 202) {
                 System.out.println("LOGIN EFFETTUATO");
-                logged = true;
-                userID = user;
                 break;
             } else {
                 System.out.println("NOME UTENTE GIA' IN USO SCEGLIERNE UN ALTRO");
             }
 
         }
+        try {
+            int portInt = Integer.parseInt(port);
+            serverSocket = new ServerSocket(portInt);
+        } catch (IOException ex) {
+            System.out.println("PORTA GIA' IN USO");
+            System.exit(0);
+        }
+         catch (NumberFormatException e) {
+            System.out.println("PORTA NON VALIDA");
+            System.exit(0);
+        }
+        ThreadUserServer server = new ThreadUserServer(serverSocket);
+        server.start();
         System.out.println("INSERISCI UN COMANDO:");
         System.out.println("DIGITA 'help' PER VISUALIZZARE L'ELENCO DEI COMANDI DISPONIBILI");
         while (true) {
@@ -86,8 +102,8 @@ public class GatewayClient {
                     queryUltimaMisurazioneID(target, lastId);
                     break;
                 case "logout":
-                    logout(target, userID);
-                    System.out.println("LOGOUT EFFETTUATO, ARRIVEDERCI " + userID);
+                    logout(target, userInfo);
+                    System.out.println("LOGOUT EFFETTUATO, ARRIVEDERCI " + userInfo.getId());
                     System.exit(0);
                     break;
 
@@ -192,7 +208,7 @@ public class GatewayClient {
         }
     }
 
-    private static void logout(WebTarget target, String user) {
+    private static void logout(WebTarget target, UserInfo user) {
         Gson gson = new Gson();
         Response answer = target.path("rest").path("users").path("logout").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(user), MediaType.APPLICATION_JSON));
     }

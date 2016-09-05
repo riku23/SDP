@@ -173,16 +173,16 @@ public class Nodo {
                     //Catturo l'eccezione ConnectionRefused e riprovo a connettermi alla rete
                     System.out.println("RIPROVO CAUSA ERRORE");
                     answer = target.path("rest").path("nodes").path("nodi").request(MediaType.APPLICATION_JSON).get();
-                    if (answer.getStatus() == 202) {
 
-                        nodesList = gson.fromJson(answer.readEntity(String.class), t);
-                        if (!nodesList.containsKey(nodeInfo.getId())) {
-                            System.out.println("IL VECCHIO NODO E' MORTO");
-                            answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
+                    nodesList = gson.fromJson(answer.readEntity(String.class), t);
+                    if (!nodesList.containsKey(nodeInfo.getId())) {
+                        System.out.println("IL VECCHIO NODO E' MORTO");
+                        answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
+                        if (answer.getStatus() == 202) {
                             registraNodo(n, answer);
-                        } else {
-                            System.out.println("DEVI ASPETTARE");
                         }
+                    } else {
+                        System.out.println("DEVI ASPETTARE");
                     }
 
                 }
@@ -195,16 +195,16 @@ public class Nodo {
                 if (n.getNeighbour() == null) {
                     System.out.println("RIPROVO CAUSA TIMEOUT");
                     answer = target.path("rest").path("nodes").path("nodi").request(MediaType.APPLICATION_JSON).get();
-                    if (answer.getStatus() == 202) {
 
-                        nodesList = gson.fromJson(answer.readEntity(String.class), t);
-                        if (!nodesList.containsKey(nodeInfo.getId())) {
-                            System.out.println("IL VECCHIO NODO E' MORTO");
-                            answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
+                    nodesList = gson.fromJson(answer.readEntity(String.class), t);
+                    if (!nodesList.containsKey(nodeInfo.getId())) {
+                        System.out.println("IL VECCHIO NODO E' MORTO");
+                        answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
+                        if (answer.getStatus() == 202) {
                             registraNodo(n, answer);
-                        } else {
-                            System.out.println("DEVI ASPETTARE");
                         }
+                    } else {
+                        System.out.println("DEVI ASPETTARE");
                     }
 
                 }
@@ -222,9 +222,7 @@ public class Nodo {
         String messageString = gson.toJson(message);
         String portString = toPort;
         int port = Integer.parseInt(portString);
-        Socket clientSocket = new Socket();
-        InetSocketAddress isa = new InetSocketAddress(address, port);
-        clientSocket.connect(isa, 3);
+        Socket clientSocket = new Socket(address, port);
         DataOutputStream outToServer = new DataOutputStream((clientSocket.getOutputStream()));
         outToServer.writeBytes(messageString + '\n');
         clientSocket.close();
