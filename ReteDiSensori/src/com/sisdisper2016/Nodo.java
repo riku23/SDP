@@ -12,6 +12,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
@@ -39,7 +40,7 @@ public class Nodo {
 
     private ServerSocket serverSocket;
     private int[] ackCounter;
-    private boolean exiting;
+    private volatile boolean exiting;
     private List<NodoInfo> pending;
     static Token token;
     private String next;
@@ -94,42 +95,48 @@ public class Nodo {
         this.exiting = false;
         this.nodoInfo = new NodoInfo(id, nodeType, new Date(), address, listeningPort);
         this.ackCounter = new int[1];
+
         this.ackCounter[0] = 0;
+
         try {
             this.serverSocket = new ServerSocket(this.listeningPort);
         } catch (IOException ex) {
             System.out.println("PORTA GIA' IN USO");
             System.exit(0);
         }
-         
+
         this.stdin = new BufferedReader(new InputStreamReader(System.in));
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-
+        //Creo il nodo
+        Response answer;
+        ClientConfig config = new ClientConfig();
+        Client client = ClientBuilder.newClient(config);
+        WebTarget target = client.target(getBaseURI());
+        Gson gson = new Gson();
         Nodo n = new Nodo(args[0], args[1], args[2], args[3]);
         System.out.println("ID NODO: " + n.getId());
         System.out.println("TIPOLOGIA NODO: " + n.getType());
         System.out.println("INDIRIZZO NODO: " + n.getAddress());
-
         System.out.println("PORTA DI ASCOLTO: " + n.getServerSocket().getLocalPort());
+        //Avvio il thread di ascolto e quello per l'input
         ThreadConsole console = new ThreadConsole(n);
         console.start();
         n.SetConsole(console);
         ThreadServer threadNodoServer = new ThreadServer(n.getServerSocket(), n);
         threadNodoServer.start();
-        registraNodo(n);
+        answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
+        registraNodo(n, answer);
 
     }
 
-    public static void registraNodo(Nodo n) throws IOException {
-        Response answer;
+    public static void registraNodo(Nodo n, Response answer) throws IOException {
         ClientConfig config = new ClientConfig();
         Client client = ClientBuilder.newClient(config);
         WebTarget target = client.target(getBaseURI());
-
         Gson gson = new Gson();
-        answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
+        //ricevo dal gateway l'elenco dei nodi della rete
         try {
             Thread.sleep(5000);
         } catch (InterruptedException ex) {
@@ -140,6 +147,7 @@ public class Nodo {
             }.getType();
             HashMap<String, NodoInfo> nodesList = gson.fromJson(answer.readEntity(String.class), t);
             System.out.println(nodesList);
+            //Se sono il primo nodo ad entrare nella rete mi occupo di creare il token e lanciarlo per la prima volta
             if (nodesList.isEmpty()) {
                 n.SetNeighbour(n.getAddress() + "-" + n.getListeningPort());
                 System.out.println("CREO IL TOKEN");
@@ -148,16 +156,58 @@ public class Nodo {
                 String[] neighbourData = n.getNeighbour().split("-");
                 Message message = new Message("token", n.getAddress(), "" + n.getListeningPort(), tokenString);
                 n.inviaMessaggio(message, neighbourData[0], neighbourData[1]);
-                //n.inviaMessaggio("token:::"+n.getAddress()+":::"+n.getListeningPort()+":::"+tokenString, neighbourData[0], neighbourData[1]);
             } else {
+                //Seleziono un nodo a caso tra quelli inseriti nella rete e lo contatto per essere inserito nella rete
                 List<String> keysAsArray = new ArrayList<>(nodesList.keySet());
                 Random r = new Random();
                 NodoInfo nodeInfo = (NodoInfo) nodesList.get(keysAsArray.get(r.nextInt(keysAsArray.size())));
                 System.out.println(nodeInfo);
                 String nodoInfoString = gson.toJson(n.getNodoInfo());
-                Message message = new Message("insert", n.getAddress(), "" + n.getListeningPort(), nodoInfoString);
-                n.inviaMessaggio(message, nodeInfo.getAddress(), nodeInfo.getPort());
-                //n.inviaMessaggio("insert:::"+n.getAddress()+":::"+n.getListeningPort()+":::"+n.getId()+"-"+n.getAddress()+"-"+n.getListeningPort(),nodeInfo[1], nodeInfo[2]);
+
+                try {
+                    //Invio il messaggio di inserimento al nodo scelto
+                    Message message = new Message("insert", n.getAddress(), "" + n.getListeningPort(), nodoInfoString);
+                    n.inviaMessaggio(message, nodeInfo.getAddress(), nodeInfo.getPort());
+
+                } catch (IOException e) {
+                    //Catturo l'eccezione ConnectionRefused e riprovo a connettermi alla rete
+                    System.out.println("RIPROVO CAUSA ERRORE");
+                    answer = target.path("rest").path("nodes").path("nodi").request(MediaType.APPLICATION_JSON).get();
+                    if (answer.getStatus() == 202) {
+
+                        nodesList = gson.fromJson(answer.readEntity(String.class), t);
+                        if (!nodesList.containsKey(nodeInfo.getId())) {
+                            System.out.println("IL VECCHIO NODO E' MORTO");
+                            answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
+                            registraNodo(n, answer);
+                        } else {
+                            System.out.println("DEVI ASPETTARE");
+                        }
+                    }
+
+                }
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Nodo.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                //Se dopo un determinato tempo il campo neighbour è ancora null vuol dire che non sono stato inserito nella rete quindi riprovo
+                if (n.getNeighbour() == null) {
+                    System.out.println("RIPROVO CAUSA TIMEOUT");
+                    answer = target.path("rest").path("nodes").path("nodi").request(MediaType.APPLICATION_JSON).get();
+                    if (answer.getStatus() == 202) {
+
+                        nodesList = gson.fromJson(answer.readEntity(String.class), t);
+                        if (!nodesList.containsKey(nodeInfo.getId())) {
+                            System.out.println("IL VECCHIO NODO E' MORTO");
+                            answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
+                            registraNodo(n, answer);
+                        } else {
+                            System.out.println("DEVI ASPETTARE");
+                        }
+                    }
+
+                }
 
             }
 
@@ -172,7 +222,9 @@ public class Nodo {
         String messageString = gson.toJson(message);
         String portString = toPort;
         int port = Integer.parseInt(portString);
-        Socket clientSocket = new Socket(address, port);
+        Socket clientSocket = new Socket();
+        InetSocketAddress isa = new InetSocketAddress(address, port);
+        clientSocket.connect(isa, 3);
         DataOutputStream outToServer = new DataOutputStream((clientSocket.getOutputStream()));
         outToServer.writeBytes(messageString + '\n');
         clientSocket.close();

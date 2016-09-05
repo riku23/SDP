@@ -61,16 +61,19 @@ public class ThreadNodo extends Thread {
             List<NodoInfo> temp;
             Thread.sleep(2000);
             if (header.equals("token")) {
+
                 System.out.println(nodo.getPending());
 
                 synchronized (nodo.getPending()) {
                     temp = new ArrayList<>(nodo.getPending());
+                    nodo.getPending().clear();
                 }
+                Thread.sleep(5000);
                 if (!temp.isEmpty()) {
                     System.out.println("INSERISCO NODI");
                     for (int i = 0; i < temp.size(); i++) {
                         InserisciNodo(temp.get(i));
-                        nodo.removePending(temp.get(i));
+
                     }
                 }
 
@@ -93,11 +96,9 @@ public class ThreadNodo extends Thread {
                 System.out.println("PROSSIMO NODO: " + neighbourData[0] + " " + neighbourData[1]);
 
                 if (nodo.isExiting()) {
-                    System.out.println("NO MARIA IO ESCO!");
+                    System.out.println("ESCO DALLA RETE");
                     esciRete(senderAddr, senderPort);
-                    if ((nodo.getNeighbour()).equals(nodo.getAddress() + "-" + nodo.getListeningPort())) {
-                        return;
-                    }
+
                 }
 
                 Message messageOut = new Message("token", nodo.getAddress(), "" + nodo.getListeningPort(), gson.toJson(token));
@@ -108,7 +109,10 @@ public class ThreadNodo extends Thread {
             }
             if (header.equals("insert")) {
                 NodoInfo nodoInfo = gson.fromJson(body, NodoInfo.class);
-                nodo.addPending(nodoInfo);
+                synchronized (nodo.getPending()) {
+                    nodo.addPending(nodoInfo);
+                }
+
             }
 
             if (header.equals("changeNext")) {
@@ -143,7 +147,7 @@ public class ThreadNodo extends Thread {
     }
 
     public void esciRete(String prevAddr, String prevPort) throws IOException, InterruptedException {
-        System.out.println(prevAddr + "-" + prevPort);
+        //System.out.println(prevAddr + "-" + prevPort);
         if (!(nodo.getNeighbour()).equals(nodo.getAddress() + "-" + nodo.getListeningPort())) {
             System.out.println("non sono solo");
             synchronized (nodo.getAck()) {
