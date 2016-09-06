@@ -23,7 +23,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 import org.glassfish.jersey.client.ClientConfig;
 
-
 public class GatewayClient {
 
     public static void main(String[] args) throws IOException {
@@ -58,8 +57,7 @@ public class GatewayClient {
         } catch (IOException ex) {
             System.out.println("PORTA GIA' IN USO");
             System.exit(0);
-        }
-         catch (NumberFormatException e) {
+        } catch (NumberFormatException e) {
             System.out.println("PORTA NON VALIDA");
             System.exit(0);
         }
@@ -95,6 +93,26 @@ public class GatewayClient {
                     System.out.print("ID: ");
                     String id = stdin.readLine();
                     queryMisurazioniID(target, id);
+                    break;
+                case "misurazioniTempoID":
+                    System.out.print("ID: ");
+                    
+                    String nodeId = stdin.readLine(); 
+                    System.out.println("TEMPO T1:");
+                    System.out.print("ORA: ");
+                    String h1 = stdin.readLine();
+                    System.out.print("MINUTI: ");
+                    String m1 = stdin.readLine();
+                    System.out.print("SECONDI: ");
+                    String s1 = stdin.readLine();
+                    System.out.println("TEMPO T2:");
+                    System.out.print("ORA: ");
+                    String h2 = stdin.readLine();
+                    System.out.print("MINUTI: ");
+                    String m2 = stdin.readLine();
+                    System.out.print("SECONDI: ");
+                    String s2 = stdin.readLine();
+                    queryTimeID(target, nodeId+"-"+h1 + ":" + m1 + ":" + s1 +"-"+h2+":"+m2+":"+s2);
                     break;
                 case "ultimaMisurazioneID":
                     System.out.print("ID: ");
@@ -147,8 +165,7 @@ public class GatewayClient {
                     System.out.println(o);
                 }
             }
-        }
-        else {
+        } else {
             String errorLog = gson.fromJson(answer.readEntity(String.class), String.class);
             System.out.println(errorLog);
         }
@@ -184,6 +201,31 @@ public class GatewayClient {
             }
         }
     }
+
+    public static void queryTimeID(WebTarget target, String time) {
+        Gson gson = new Gson();
+        Response answer = target.path("rest").path("nodes").path("misurazioniTempo").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(time), MediaType.APPLICATION_JSON));
+        if (answer.getStatus() == 202) {
+            Type t = new TypeToken<ArrayList<Measurement>>() {
+            }.getType();
+            List list = gson.fromJson(answer.readEntity(String.class), t);
+
+            for (Measurement m : (List<Measurement>) list) {
+                System.out.println("id=" + m.getId() + ", " + "type=" + m.getType() + ", " + "value=" + m.getValue() + ", " + "timestamp=" + m.getTimestamp());
+
+            }
+        } else {
+            String errorLog = gson.fromJson(answer.readEntity(String.class), String.class);
+            System.out.println(errorLog);
+        }
+    }
+    
+
+    
+
+    
+
+    
 
     private static void queryUscitaNodo(WebTarget target, String id) throws IOException {
         Gson gson = new Gson();
