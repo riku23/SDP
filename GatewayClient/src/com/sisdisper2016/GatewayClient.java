@@ -69,15 +69,11 @@ public class GatewayClient {
             String command = stdin.readLine();
             switch (command) {
                 case "help":
-                    System.out.println("misurazioni - visualizza le misurazioni registrate.\n"
-                            + "misurazioniID - visualizza le misurazioni di uno specifico sensore.\n"
-                            + "ultimaMisurazioneID - visualizza l'ultima misurazione di uno specifico nodo.\n"
+                    System.out.println(
+                            "ultimaMisurazioneID - visualizza l'ultima misurazione di uno specifico nodo.\n"
                             + "nodi - visualizza l'elenco dei nodi presenti nella rete.\n"
                             + "uscitaNodo - ferma e rimuole dalla rete il nodo con l'ID specificato\n"
                             + "logout - effettua il logout");
-                    break;
-                case "misurazioni":
-                    queryMisurazioni(target);
                     break;
 
                 case "nodi":
@@ -89,15 +85,10 @@ public class GatewayClient {
                     String exitId = stdin.readLine();
                     queryUscitaNodo(target, exitId);
                     break;
-                case "misurazioniID":
-                    System.out.print("ID: ");
-                    String id = stdin.readLine();
-                    queryMisurazioniID(target, id);
-                    break;
                 case "misurazioniTempoID":
                     System.out.print("ID: ");
-                    
-                    String nodeId = stdin.readLine(); 
+
+                    String nodeId = stdin.readLine();
                     System.out.println("TEMPO T1:");
                     System.out.print("ORA: ");
                     String h1 = stdin.readLine();
@@ -112,7 +103,27 @@ public class GatewayClient {
                     String m2 = stdin.readLine();
                     System.out.print("SECONDI: ");
                     String s2 = stdin.readLine();
-                    queryTimeID(target, nodeId+"-"+h1 + ":" + m1 + ":" + s1 +"-"+h2+":"+m2+":"+s2);
+                    queryTimeID(target, nodeId + "-" + h1 + ":" + m1 + ":" + s1 + "-" + h2 + ":" + m2 + ":" + s2);
+                    break;
+                case "misurazioniTempoType":
+                    System.out.print("TIPO: ");
+
+                    String nodeType = stdin.readLine();
+                    System.out.println("TEMPO T1:");
+                    System.out.print("ORA: ");
+                    h1 = stdin.readLine();
+                    System.out.print("MINUTI: ");
+                    m1 = stdin.readLine();
+                    System.out.print("SECONDI: ");
+                    s1 = stdin.readLine();
+                    System.out.println("TEMPO T2:");
+                    System.out.print("ORA: ");
+                    h2 = stdin.readLine();
+                    System.out.print("MINUTI: ");
+                    m2 = stdin.readLine();
+                    System.out.print("SECONDI: ");
+                    s2 = stdin.readLine();
+                    queryTimeType(target, nodeType + "-" + h1 + ":" + m1 + ":" + s1 + "-" + h2 + ":" + m2 + ":" + s2);
                     break;
                 case "ultimaMisurazioneID":
                     System.out.print("ID: ");
@@ -132,43 +143,6 @@ public class GatewayClient {
 
         }
 
-    }
-
-    public static void queryMisurazioni(WebTarget target) {
-        Gson gson = new Gson();
-        Response answer = target.path("rest").path("nodes").path("misurazioni").request(MediaType.APPLICATION_JSON).get();
-        Type t = new TypeToken<HashMap<String, List<Measurement>>>() {
-        }.getType();
-        Map map = gson.fromJson(answer.readEntity(String.class), t);
-        if (map.isEmpty()) {
-            System.out.println("NESSUNA MISURAZIONE");
-        } else {
-            for (Object id : map.keySet()) {
-                System.out.println("ID NODO: " + id);
-                System.out.println("MISURAZIONI:");
-                for (Measurement m : (List<Measurement>) map.get(id)) {
-                    System.out.println("id=" + m.getId() + ", " + "type=" + m.getType() + ", " + "value=" + m.getValue() + ", " + "timestamp=" + m.getTimestamp());
-                }
-            }
-        }
-    }
-
-    private static void queryMisurazioniID(WebTarget target, String id) {
-        Gson gson = new Gson();
-        Response answer = target.path("rest").path("nodes").path("misurazioniID").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(id), MediaType.APPLICATION_JSON));
-        if (answer.getStatus() == 202) {
-            ArrayList list = gson.fromJson(answer.readEntity(String.class), ArrayList.class);
-            if (list.isEmpty()) {
-                System.out.println("NESSUNA MISURAZIONE");
-            } else {
-                for (Object o : list) {
-                    System.out.println(o);
-                }
-            }
-        } else {
-            String errorLog = gson.fromJson(answer.readEntity(String.class), String.class);
-            System.out.println(errorLog);
-        }
     }
 
     private static void queryUltimaMisurazioneID(WebTarget target, String id) {
@@ -202,30 +176,59 @@ public class GatewayClient {
         }
     }
 
-    public static void queryTimeID(WebTarget target, String time) {
+    public static void queryTimeID(WebTarget target, String idTime) {
         Gson gson = new Gson();
-        Response answer = target.path("rest").path("nodes").path("misurazioniTempo").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(time), MediaType.APPLICATION_JSON));
+        Response answer = target.path("rest").path("nodes").path("misurazioniTempoID").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(idTime), MediaType.APPLICATION_JSON));
         if (answer.getStatus() == 202) {
             Type t = new TypeToken<ArrayList<Measurement>>() {
             }.getType();
-            List list = gson.fromJson(answer.readEntity(String.class), t);
-
-            for (Measurement m : (List<Measurement>) list) {
-                System.out.println("id=" + m.getId() + ", " + "type=" + m.getType() + ", " + "value=" + m.getValue() + ", " + "timestamp=" + m.getTimestamp());
-
-            }
+            List<Measurement> list = gson.fromJson(answer.readEntity(String.class), t);
+            MeasurementValueComparator c = new MeasurementValueComparator();
+            list.sort(c);
+            Measurement max = list.get(list.size() - 1);
+            Measurement min = list.get(0);
+            System.out.print("MISURAZIONE MAX: ");
+            System.out.println("id=" + max.getId() + ", " + "type=" + max.getType() + ", " + "value=" + max.getValue() + ", " + "timestamp=" + max.getTimestamp());
+            System.out.print("MISURAZIONE MIN: ");
+            System.out.println("id=" + min.getId() + ", " + "type=" + min.getType() + ", " + "value=" + min.getValue() + ", " + "timestamp=" + min.getTimestamp());
+            System.out.println("MEDIA MISURAZIONI: " + mediaMisurazioni(list));
         } else {
             String errorLog = gson.fromJson(answer.readEntity(String.class), String.class);
             System.out.println(errorLog);
         }
     }
-    
 
-    
+    public static void queryTimeType(WebTarget target, String typeTime) {
+        Gson gson = new Gson();
+        Response answer = target.path("rest").path("nodes").path("misurazioniTempoType").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(typeTime), MediaType.APPLICATION_JSON));
+        if (answer.getStatus() == 202) {
+            Type t = new TypeToken<ArrayList<Measurement>>() {
+            }.getType();
+            List<Measurement> list = gson.fromJson(answer.readEntity(String.class), t);
+            MeasurementValueComparator c = new MeasurementValueComparator();
+            list.sort(c);
+            Measurement max = list.get(list.size() - 1);
+            Measurement min = list.get(0);
+            System.out.print("MISURAZIONE MAX: ");
+            System.out.println("id=" + max.getId() + ", " + "type=" + max.getType() + ", " + "value=" + max.getValue() + ", " + "timestamp=" + max.getTimestamp());
+            System.out.print("MISURAZIONE MIN: ");
+            System.out.println("id=" + min.getId() + ", " + "type=" + min.getType() + ", " + "value=" + min.getValue() + ", " + "timestamp=" + min.getTimestamp());
+            System.out.println("MEDIA MISURAZIONI: " + mediaMisurazioni(list));
+        } else {
+            String errorLog = gson.fromJson(answer.readEntity(String.class), String.class);
+            System.out.println(errorLog);
+        }
+    }
 
-    
+    private static double mediaMisurazioni(List<Measurement> list) {
+        double media = 0.0;
+        for (Measurement m : list) {
+            media += Double.parseDouble(m.getValue());
+        }
+        media = media / list.size();
 
-    
+        return media;
+    }
 
     private static void queryUscitaNodo(WebTarget target, String id) throws IOException {
         Gson gson = new Gson();

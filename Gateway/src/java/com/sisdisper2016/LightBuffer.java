@@ -53,6 +53,14 @@ public class LightBuffer {
         return bufferMap.get(id);
 
     }
+    
+    public List<Measurement> getList(){
+        List<Measurement> list = new ArrayList<>();
+        for(String s : bufferMap.keySet()){
+            list.addAll(bufferMap.get(s));
+        }
+        return list;
+    }
 
     @Override
     public String toString() {

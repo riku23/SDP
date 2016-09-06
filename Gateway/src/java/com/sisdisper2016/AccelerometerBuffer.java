@@ -49,6 +49,14 @@ public class AccelerometerBuffer {
         return this.bufferMap;
     }
 
+    public List<Measurement> getList() {
+        List<Measurement> list = new ArrayList<>();
+        for (String s : bufferMap.keySet()) {
+            list.addAll(bufferMap.get(s));
+        }
+        return list;
+    }
+
     public List<Measurement> getListByID(String id) {
         return bufferMap.get(id);
 
@@ -60,11 +68,11 @@ public class AccelerometerBuffer {
     }
 
     public int getMisurazioni() {
-       int size=0;
-       for(String id : bufferMap.keySet()){
-           size+= bufferMap.get(id).size();
-       }
-       
+        int size = 0;
+        for (String id : bufferMap.keySet()) {
+            size += bufferMap.get(id).size();
+        }
+
         return size;
     }
 
