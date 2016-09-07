@@ -8,6 +8,7 @@ package com.sisdisper2016;
 import com.google.gson.Gson;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -68,6 +69,7 @@ public class NodesResource {
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
         System.out.println("REGISTRZIONE NODO: " + nodo.toString());
         //String[] nodoInfo = nodo.split("-");
+        
         synchronized (nodes.nodiRegistrati()) {
 
             if (nodes.nodiRegistrati().containsKey(nodo.getId())) {
@@ -151,18 +153,35 @@ public class NodesResource {
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
         System.out.println("CREAZIONE NODO: " + nodo.toString());
-        synchronized (nodes.nodiRegistrati()) {
-            if (nodes.nodiRegistrati().containsKey(nodo.getId())) {
+        synchronized (nodes.nodiRegistratiClient()) {
+            if (nodes.nodiRegistratiClient().contains(nodo.getId())) {
                 return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("ID NODO GIA' PRESENTE")).build();
             } else {
-
+                
+                nodes.nodiRegistratiClient().add(nodo.getId());
+                if(available(nodo.getAddress(),Integer.parseInt(nodo.getPort()))){
                 Process proc = Runtime.getRuntime().exec("java -jar D:\\Documenti\\NetBeansProjects\\ReteDiSensori\\dist\\ReteDiSensori.jar "
                         + nodo.getId() + " " + nodo.getType() + " " + nodo.getAddress() + " " + nodo.getPort());
-
+                
                 return Response.status(Response.Status.ACCEPTED).entity(gson.toJson("NODO IN CREAZIONE")).build();
+                }else{
+                    synchronized (nodes.nodiRegistratiClient()) {
+                        nodes.nodiRegistratiClient().remove(nodo.getId());
+                    }
+                    return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("PORTA GIA' IN USO")).build();
+                }
             }
         }
     }
+    
+    private static boolean available(String address,int port) {
+    try (ServerSocket ignored = new ServerSocket(port)) {
+        ignored.close();
+        return true;
+    } catch (IOException ex) {
+        return false;
+    }
+}
 
     @Path("delete")
     @POST

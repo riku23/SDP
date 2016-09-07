@@ -1,1 +1,0 @@
-gatewayclient.GatewayClient

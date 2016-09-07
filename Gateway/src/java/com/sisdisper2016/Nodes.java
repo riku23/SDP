@@ -19,13 +19,14 @@ public class Nodes {
     private static Nodes instance = null;
     private Map<String, NodoInfo> nodiRegistratiMap;
     private Map<String, NodoInfo> nodiInseritiMap; 
+    private List<String> nodiRegistratiList;
 
     //private final  HashMap<String,String> nodi;
 
     private Nodes() {
         nodiRegistratiMap = new HashMap<>();
         nodiInseritiMap = new HashMap<>();
-
+        nodiRegistratiList = new ArrayList<>();
         // Exists only to defeat instantiation.
     }
 
@@ -58,6 +59,10 @@ public class Nodes {
 
     public Map<String,NodoInfo> nodiInseriti() {
         return this.nodiInseritiMap;
+    }
+    
+    public List<String> nodiRegistratiClient(){
+        return this.nodiRegistratiList;
     }
 
     public String toStringRegistrati() {

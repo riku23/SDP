@@ -60,7 +60,7 @@ public class Nodo {
     public Nodo() {
     }
 
-    public Nodo(String id, String nodeType, String address, String listeningPort) {
+    public Nodo(String id, String nodeType, String address, String listeningPort) throws IOException {
         this.id = id;
         this.nodeType = nodeType;
         this.address = address;
@@ -105,6 +105,7 @@ public class Nodo {
             this.serverSocket = new ServerSocket(this.listeningPort);
         } catch (IOException ex) {
             System.out.println("PORTA GIA' IN USO");
+            this.serverSocket.close();
             System.exit(0);
         }
 
