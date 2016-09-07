@@ -66,7 +66,7 @@ public class NodesResource {
         nodes = Nodes.getInstance();
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
-        System.out.println(nodo.toString());
+        System.out.println("REGISTRZIONE NODO: " + nodo.toString());
         //String[] nodoInfo = nodo.split("-");
         synchronized (nodes.nodiRegistrati()) {
 
@@ -98,7 +98,7 @@ public class NodesResource {
         nodes = Nodes.getInstance();
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
-        System.out.println(nodo.toString());
+        System.out.println("NUOVO TENTATIVO REGISTRZIONE NODO: " + nodo.toString());
         //String[] nodoInfo = nodo.split("-");
         synchronized (nodes.nodiRegistrati()) {
 
@@ -142,6 +142,54 @@ public class NodesResource {
 
     }
 
+    @Path("create")
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response postCreate(String nodoString) throws IOException {
+        nodes = Nodes.getInstance();
+        Gson gson = new Gson();
+        NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
+        System.out.println("CREAZIONE NODO: " + nodo.toString());
+        synchronized (nodes.nodiRegistrati()) {
+            if (nodes.nodiRegistrati().containsKey(nodo.getId())) {
+                return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("ID NODO GIA' PRESENTE")).build();
+            } else {
+
+                Process proc = Runtime.getRuntime().exec("java -jar D:\\Documenti\\NetBeansProjects\\ReteDiSensori\\dist\\ReteDiSensori.jar "
+                        + nodo.getId() + " " + nodo.getType() + " " + nodo.getAddress() + " " + nodo.getPort());
+
+                return Response.status(Response.Status.ACCEPTED).entity(gson.toJson("NODO IN CREAZIONE")).build();
+            }
+        }
+    }
+
+    @Path("delete")
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response postDelete(String nodoString) throws IOException {
+        nodes = Nodes.getInstance();
+        Gson gson = new Gson();
+        String nodoId = gson.fromJson(nodoString, String.class);
+        synchronized (nodes.nodiInseriti()) {
+            if (nodes.nodiInseriti().containsKey(nodoId)) {
+                NodoInfo nodo = nodes.nodiInseriti().get(nodoId);
+                Message message = new Message("exit", "", "" + "", "");
+                String messageString = gson.toJson(message);
+                String portString = nodo.getPort();
+                int port = Integer.parseInt(portString);
+                Socket clientSocket = new Socket(nodo.getAddress(), port);
+                DataOutputStream outToServer = new DataOutputStream((clientSocket.getOutputStream()));
+                outToServer.writeBytes(messageString + '\n');
+                clientSocket.close();
+                return Response.status(Response.Status.ACCEPTED).entity(gson.toJson("NODO IN ELIMINAZIONE")).build();
+            } else {
+                return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NODO NON PRESENTE NELLA RETE")).build();
+            }
+        }
+    }
+
     @Path("exit")
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
@@ -156,6 +204,7 @@ public class NodesResource {
         synchronized (nodes.nodiInseriti()) {
             nodes.rimuoviNodo(nodo);
         }
+
         broadcastUtenti(nodo, "nodeExit");
         return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(Nodes.getInstance().nodiInseriti())).build();
     }
@@ -262,14 +311,12 @@ public class NodesResource {
         synchronized (nodes.nodiInseriti()) {
             nodo = nodes.nodiInseriti().get(idString);
         }
-            if (nodo == null) {
-                return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NODO NON PRESENTE NELLA RETE")).build();
-            } else {
-                return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(nodo)).build();
-            }
+        if (nodo == null) {
+            return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NODO NON PRESENTE NELLA RETE")).build();
+        } else {
+            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(nodo)).build();
         }
-    
-
+    }
 
     @Path("ultimaMisurazioneID")
     @POST
@@ -282,6 +329,8 @@ public class NodesResource {
         nodes = Nodes.getInstance();
         Gson gson = new Gson();
         String idString = gson.fromJson(id, String.class);
+        List<Measurement> list;
+        MeasurementComparator c = new MeasurementComparator();
         System.out.println(idString);
         NodoInfo nodo = nodes.nodiRegistrati().get(idString);
         if (nodo != null) {
@@ -289,34 +338,40 @@ public class NodesResource {
             switch (type) {
                 case "accelerometer":
                     synchronized (accelerometerBuffer.getBuffer()) {
-                        List<Measurement> list = accelerometerBuffer.getListByID(idString);
-                        if (list != null) {
-                            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list.get(list.size() - 1))).build();
-                        } else {
-                            return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE")).build();
-
-                        }
+                        list = accelerometerBuffer.getListByID(idString);
                     }
+
+                    if (list != null) {
+                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list.get(list.size() - 1))).build();
+                    } else {
+                        return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE")).build();
+
+                    }
+
                 case "light":
                     synchronized (lightBuffer.getBuffer()) {
-                        List<Measurement> list = lightBuffer.getListByID(idString);
-                        if (list != null) {
-                            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list.get(list.size() - 1))).build();
-                        } else {
-                            return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE")).build();
-
-                        }
+                        list = lightBuffer.getListByID(idString);
                     }
+
+                    if (list != null) {
+                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list.get(list.size() - 1))).build();
+                    } else {
+                        return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE")).build();
+
+                    }
+
                 case "temperature":
                     synchronized (temperatureBuffer.getBuffer()) {
-                        List<Measurement> list = temperatureBuffer.getListByID(idString);
-                        if (list != null) {
-                            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list.get(list.size() - 1))).build();
-                        } else {
-                            return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE")).build();
-
-                        }
+                        list = temperatureBuffer.getListByID(idString);
                     }
+
+                    if (list != null) {
+                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list.get(list.size() - 1))).build();
+                    } else {
+                        return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE")).build();
+
+                    }
+
                 default:
                     return Response.status(Response.Status.NOT_ACCEPTABLE).build();
             }
@@ -337,7 +392,7 @@ public class NodesResource {
         List<Measurement> list = new ArrayList<>();
         List<Measurement> temp;
         Map<String, NodoInfo> tempMap;
-        
+
         Gson gson = new Gson();
         String messageString = gson.fromJson(message, String.class);
         String[] messageSplit = messageString.split("-");
@@ -359,15 +414,15 @@ public class NodesResource {
         if (timestamp1 == -1 || timestamp2 == -1 || timestamp2 < timestamp1) {
             return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("INTERVALLO NON VALIDO")).build();
         }
-        synchronized(nodes.nodiRegistrati()){
+        synchronized (nodes.nodiRegistrati()) {
             tempMap = nodes.nodiRegistrati();
-            
+
         }
         if (tempMap.keySet().contains(id)) {
             switch (tempMap.get(id).getType()) {
                 case "accelerometer":
                     if (accelerometerBuffer.getListByID(id) != null) {
-                        synchronized(accelerometerBuffer.getListByID(id)){
+                        synchronized (accelerometerBuffer.getListByID(id)) {
                             temp = new ArrayList<>(accelerometerBuffer.getListByID(id));
                         }
                         for (Measurement measurement : temp) {
@@ -390,7 +445,7 @@ public class NodesResource {
 
                 case "light":
                     if (lightBuffer.getListByID(id) != null) {
-                        synchronized(lightBuffer.getListByID(id)){
+                        synchronized (lightBuffer.getListByID(id)) {
                             temp = new ArrayList<>(lightBuffer.getListByID(id));
                         }
                         for (Measurement measurement : temp) {
@@ -413,7 +468,7 @@ public class NodesResource {
 
                 case "temperature":
                     if (temperatureBuffer.getListByID(id) != null) {
-                        synchronized(temperatureBuffer.getListByID(id)){
+                        synchronized (temperatureBuffer.getListByID(id)) {
                             temp = new ArrayList<>(temperatureBuffer.getListByID(id));
                         }
                         for (Measurement measurement : temp) {
@@ -442,8 +497,8 @@ public class NodesResource {
         }
 
     }
-    
-        @Path("misurazioniTempoType")
+
+    @Path("misurazioniTempoType")
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
@@ -476,83 +531,81 @@ public class NodesResource {
             return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("INTERVALLO NON VALIDO")).build();
         }
 
-            switch (type) {
-                case "accelerometer":
-                    if (!accelerometerBuffer.getList().isEmpty()) {
-                        synchronized(accelerometerBuffer.getList()){
-                            temp = new ArrayList<>(accelerometerBuffer.getList());
-                        }
-                        for (Measurement measurement : temp) {
+        switch (type) {
+            case "accelerometer":
+                if (!accelerometerBuffer.getList().isEmpty()) {
+                    synchronized (accelerometerBuffer.getList()) {
+                        temp = new ArrayList<>(accelerometerBuffer.getList());
+                    }
+                    for (Measurement measurement : temp) {
 
-                            int intTimestamp = (int) ((measurement.getTimestamp() / 1000) * 1000);
+                        int intTimestamp = (int) ((measurement.getTimestamp() / 1000) * 1000);
 
-                            if ((long) intTimestamp > timestamp1 && (long) intTimestamp < timestamp2) {
-                                list.add(measurement);
-                            }
+                        if ((long) intTimestamp > timestamp1 && (long) intTimestamp < timestamp2) {
+                            list.add(measurement);
                         }
-
-                        if (!list.isEmpty()) {
-                            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list)).build();
-                        } else {
-                            return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE NEL RANGE TEMPORALE")).build();
-                        }
-                    } else {
-                        return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE REGISTRATA")).build();
                     }
 
-                case "light":
-                    if (!lightBuffer.getList().isEmpty()) {
-                        synchronized(lightBuffer.getList()){
-                            temp = new ArrayList<>(lightBuffer.getList());
-                        }
-                        for (Measurement measurement : temp) {
-
-                            int intTimestamp = (int) ((measurement.getTimestamp() / 1000) * 1000);
-
-                            if ((long) intTimestamp > timestamp1 && (long) intTimestamp < timestamp2) {
-                                list.add(measurement);
-                            }
-                        }
-
-                        if (!list.isEmpty()) {
-                            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list)).build();
-                        } else {
-                            return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE NEL RANGE TEMPORALE")).build();
-                        }
+                    if (!list.isEmpty()) {
+                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list)).build();
                     } else {
-                        return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE REGISTRATA")).build();
+                        return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE NEL RANGE TEMPORALE")).build();
+                    }
+                } else {
+                    return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE REGISTRATA")).build();
+                }
+
+            case "light":
+                if (!lightBuffer.getList().isEmpty()) {
+                    synchronized (lightBuffer.getList()) {
+                        temp = new ArrayList<>(lightBuffer.getList());
+                    }
+                    for (Measurement measurement : temp) {
+
+                        int intTimestamp = (int) ((measurement.getTimestamp() / 1000) * 1000);
+
+                        if ((long) intTimestamp > timestamp1 && (long) intTimestamp < timestamp2) {
+                            list.add(measurement);
+                        }
                     }
 
-                case "temperature":
-                    if (!temperatureBuffer.getList().isEmpty()) {
-                        synchronized(temperatureBuffer.getList()){
-                            temp = new ArrayList<>(temperatureBuffer.getList());
-                        }
-                        for (Measurement measurement : temp) {
-
-                            int intTimestamp = (int) ((measurement.getTimestamp() / 1000) * 1000);
-
-                            if ((long) intTimestamp > timestamp1 && (long) intTimestamp < timestamp2) {
-                                list.add(measurement);
-                            }
-                        }
-
-                        if (!list.isEmpty()) {
-                            return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list)).build();
-                        } else {
-                            return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE NEL RANGE TEMPORALE")).build();
-                        }
+                    if (!list.isEmpty()) {
+                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list)).build();
                     } else {
-                        return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE REGISTRATA")).build();
+                        return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE NEL RANGE TEMPORALE")).build();
                     }
-                default:
-                    return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("ERRORE SUL TIPO")).build();
+                } else {
+                    return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE REGISTRATA")).build();
+                }
 
-            }
-        
+            case "temperature":
+                if (!temperatureBuffer.getList().isEmpty()) {
+                    synchronized (temperatureBuffer.getList()) {
+                        temp = new ArrayList<>(temperatureBuffer.getList());
+                    }
+                    for (Measurement measurement : temp) {
+
+                        int intTimestamp = (int) ((measurement.getTimestamp() / 1000) * 1000);
+
+                        if ((long) intTimestamp > timestamp1 && (long) intTimestamp < timestamp2) {
+                            list.add(measurement);
+                        }
+                    }
+
+                    if (!list.isEmpty()) {
+                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(list)).build();
+                    } else {
+                        return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE NEL RANGE TEMPORALE")).build();
+                    }
+                } else {
+                    return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("NESSUNA MISURAZIONE REGISTRATA")).build();
+                }
+            default:
+                return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("ERRORE SUL TIPO")).build();
+
+        }
 
     }
-
 
     private long computeMidnightMilliseconds() {
         Calendar c = Calendar.getInstance();
@@ -568,13 +621,13 @@ public class NodesResource {
         SimpleDateFormat df = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
         long timestamp = 0;
         int ora = 0;
-        int min= 0;
+        int min = 0;
         int sec = 0;
-        try{
-        ora = Integer.parseInt(h);
-        min = Integer.parseInt(m);
-        sec = Integer.parseInt(s);
-        }catch(NumberFormatException e ){
+        try {
+            ora = Integer.parseInt(h);
+            min = Integer.parseInt(m);
+            sec = Integer.parseInt(s);
+        } catch (NumberFormatException e) {
             return -1;
         }
         if (ora < 0 || ora > 24) {

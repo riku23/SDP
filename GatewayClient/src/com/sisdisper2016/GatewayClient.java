@@ -8,9 +8,13 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,7 +83,21 @@ public class GatewayClient {
                 case "nodi":
                     queryNodi(target);
                     break;
-
+                case "creazioneNodo":
+                    System.out.print("ID: ");
+                    String enterId = stdin.readLine();
+                    System.out.print("TIPO: ");
+                    String enterType = stdin.readLine();
+                    System.out.print("INDIRIZZO: ");
+                    String enterAddress = stdin.readLine();
+                    System.out.print("PORTA: ");
+                    String enterPort = stdin.readLine();
+                    if (validateCreationInput(enterType, enterAddress, enterPort)) {
+                        queryCreazioneNodo(target, enterId, enterType, enterAddress, enterPort);
+                    }else{
+                        System.out.println("DATI NON VALIDI");
+                    }
+                    break;
                 case "uscitaNodo":
                     System.out.print("ID: ");
                     String exitId = stdin.readLine();
@@ -145,6 +163,49 @@ public class GatewayClient {
 
     }
 
+    private static boolean validateCreationInput(String type, String address, String port) {
+        if (!type.equals("accelerometer") && !type.equals("light") && !type.equals("temperature")) {
+            return false;
+        }
+        try {
+            int portInt = Integer.parseInt(port);
+            if (portInt <= 0 || portInt > 65535) {
+                return false;
+            }
+        } catch (NumberFormatException ex) {
+            return false;
+        }
+        try {
+            InetAddress.getByName(address);
+
+        } catch (UnknownHostException e1) {
+            try {
+                InetAddress.getByAddress(address.getBytes());
+            } catch (UnknownHostException e2) {
+                return false;
+            }
+        }
+
+        return true;
+
+    }
+
+    private static long computeMidnightMilliseconds() {
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
+    }
+
+    private static Date millisToDate(long millis) {
+        Calendar c = Calendar.getInstance();
+        long midnight = computeMidnightMilliseconds();
+        c.setTimeInMillis(midnight + millis);
+        return c.getTime();
+    }
+
     private static void queryUltimaMisurazioneID(WebTarget target, String id) {
         Gson gson = new Gson();
         Response answer = target.path("rest").path("nodes").path("ultimaMisurazioneID").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(id), MediaType.APPLICATION_JSON));
@@ -153,7 +214,7 @@ public class GatewayClient {
             if (m == null) {
                 System.out.println("NESSUNA MISURAZIONE");
             } else {
-                System.out.println("id=" + m.getId() + ", " + "type=" + m.getType() + ", " + "value=" + m.getValue() + ", " + "timestamp=" + m.getTimestamp());
+                System.out.println("id=" + m.getId() + ", " + "type=" + m.getType() + ", " + "value=" + m.getValue() + ", " + "timestamp=" + millisToDate(m.getTimestamp()));
             }
         } else {
             String errorLog = gson.fromJson(answer.readEntity(String.class), String.class);
@@ -188,9 +249,9 @@ public class GatewayClient {
             Measurement max = list.get(list.size() - 1);
             Measurement min = list.get(0);
             System.out.print("MISURAZIONE MAX: ");
-            System.out.println("id=" + max.getId() + ", " + "type=" + max.getType() + ", " + "value=" + max.getValue() + ", " + "timestamp=" + max.getTimestamp());
+            System.out.println("id=" + max.getId() + ", " + "type=" + max.getType() + ", " + "value=" + max.getValue() + ", " + "timestamp=" + millisToDate(max.getTimestamp()));
             System.out.print("MISURAZIONE MIN: ");
-            System.out.println("id=" + min.getId() + ", " + "type=" + min.getType() + ", " + "value=" + min.getValue() + ", " + "timestamp=" + min.getTimestamp());
+            System.out.println("id=" + min.getId() + ", " + "type=" + min.getType() + ", " + "value=" + min.getValue() + ", " + "timestamp=" + millisToDate(min.getTimestamp()));
             System.out.println("MEDIA MISURAZIONI: " + mediaMisurazioni(list));
         } else {
             String errorLog = gson.fromJson(answer.readEntity(String.class), String.class);
@@ -210,9 +271,9 @@ public class GatewayClient {
             Measurement max = list.get(list.size() - 1);
             Measurement min = list.get(0);
             System.out.print("MISURAZIONE MAX: ");
-            System.out.println("id=" + max.getId() + ", " + "type=" + max.getType() + ", " + "value=" + max.getValue() + ", " + "timestamp=" + max.getTimestamp());
+            System.out.println("id=" + max.getId() + ", " + "type=" + max.getType() + ", " + "value=" + max.getValue() + ", " + "timestamp=" + millisToDate(max.getTimestamp()));
             System.out.print("MISURAZIONE MIN: ");
-            System.out.println("id=" + min.getId() + ", " + "type=" + min.getType() + ", " + "value=" + min.getValue() + ", " + "timestamp=" + min.getTimestamp());
+            System.out.println("id=" + min.getId() + ", " + "type=" + min.getType() + ", " + "value=" + min.getValue() + ", " + "timestamp=" + millisToDate(min.getTimestamp()));
             System.out.println("MEDIA MISURAZIONI: " + mediaMisurazioni(list));
         } else {
             String errorLog = gson.fromJson(answer.readEntity(String.class), String.class);
@@ -230,27 +291,26 @@ public class GatewayClient {
         return media;
     }
 
+    private static void queryCreazioneNodo(WebTarget target, String id, String type, String address, String port) {
+        NodoInfo nodo = new NodoInfo(id, type, new Date(), address, port);
+        Gson gson = new Gson();
+        Response answer = target.path("rest").path("nodes").path("create").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo), MediaType.APPLICATION_JSON));
+        String log = gson.fromJson(answer.readEntity(String.class), String.class);
+        System.out.println(log);
+    }
+
     private static void queryUscitaNodo(WebTarget target, String id) throws IOException {
         Gson gson = new Gson();
-        Response answer = target.path("rest").path("nodes").path("nodoID").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(id), MediaType.APPLICATION_JSON));
+        String log;
+        Response answer = target.path("rest").path("nodes").path("delete").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(id), MediaType.APPLICATION_JSON));
 
         if (answer.getStatus() == 202) {
-            NodoInfo nodo = gson.fromJson(answer.readEntity(String.class
-            ), NodoInfo.class
-            );
-            System.out.println(nodo);
-            Message message = new Message("exit", "", "" + "", "");
-            String messageString = gson.toJson(message);
-            String portString = nodo.getPort();
-            int port = Integer.parseInt(portString);
-            Socket clientSocket = new Socket(nodo.getAddress(), port);
-            DataOutputStream outToServer = new DataOutputStream((clientSocket.getOutputStream()));
-            outToServer.writeBytes(messageString + '\n');
-            clientSocket.close();
+            log = gson.fromJson(answer.readEntity(String.class), String.class);
         } else {
-            String errorLog = gson.fromJson(answer.readEntity(String.class), String.class);
-            System.out.println(errorLog);
+            log = gson.fromJson(answer.readEntity(String.class), String.class);
+           
         }
+         System.out.println(log);
     }
 
     private static void logout(WebTarget target, UserInfo user) {

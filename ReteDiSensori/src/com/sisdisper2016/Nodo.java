@@ -12,10 +12,12 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -62,6 +64,7 @@ public class Nodo {
         this.id = id;
         this.nodeType = nodeType;
         this.address = address;
+
         try {
             this.listeningPort = Integer.parseInt(listeningPort);
             switch (nodeType) {
@@ -108,6 +111,29 @@ public class Nodo {
         this.stdin = new BufferedReader(new InputStreamReader(System.in));
     }
 
+    private static boolean validateAddress(String address, String port) {
+        try {
+            int portInt = Integer.parseInt(port);
+            if (portInt <= 0 || portInt > 65535) {
+                return false;
+            }
+        } catch (NumberFormatException ex) {
+            return false;
+        }
+        try {
+            InetAddress.getByName(address);
+
+        } catch (UnknownHostException e1) {
+            try {
+                InetAddress.getByAddress(address.getBytes());
+            } catch (UnknownHostException e2) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public static void main(String[] args) throws IOException, InterruptedException {
         //Creo il nodo
         Response answer;
@@ -115,6 +141,11 @@ public class Nodo {
         Client client = ClientBuilder.newClient(config);
         WebTarget target = client.target(getBaseURI());
         Gson gson = new Gson();
+        System.out.println("VALIDAZIONE INPUT");
+        if (!validateAddress(args[2], args[3])) {
+            System.out.println("INDIRIZZO DI RETE NON VALIDO");
+            System.exit(0);
+        }
         Nodo n = new Nodo(args[0], args[1], args[2], args[3]);
         System.out.println("ID NODO: " + n.getId());
         System.out.println("TIPOLOGIA NODO: " + n.getType());
@@ -139,13 +170,16 @@ public class Nodo {
         //ricevo dal gateway l'elenco dei nodi della rete
         try {
             Thread.sleep(5000);
+
         } catch (InterruptedException ex) {
-            Logger.getLogger(Nodo.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Nodo.class
+                    .getName()).log(Level.SEVERE, null, ex);
         }
         if (answer.getStatus() == 202) {
             Type t = new TypeToken<HashMap<String, NodoInfo>>() {
             }.getType();
-            HashMap<String, NodoInfo> nodesList = gson.fromJson(answer.readEntity(String.class), t);
+            HashMap<String, NodoInfo> nodesList = gson.fromJson(answer.readEntity(String.class
+            ), t);
             System.out.println(nodesList);
             //Se sono il primo nodo ad entrare nella rete mi occupo di creare il token e lanciarlo per la prima volta
             if (nodesList.isEmpty()) {
@@ -174,7 +208,9 @@ public class Nodo {
                     System.out.println("RIPROVO CAUSA ERRORE");
                     answer = target.path("rest").path("nodes").path("nodi").request(MediaType.APPLICATION_JSON).get();
 
-                    nodesList = gson.fromJson(answer.readEntity(String.class), t);
+                    nodesList
+                            = gson.fromJson(answer.readEntity(String.class
+                            ), t);
                     if (!nodesList.containsKey(nodeInfo.getId())) {
                         System.out.println("IL VECCHIO NODO E' MORTO");
                         answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
@@ -188,15 +224,19 @@ public class Nodo {
                 }
                 try {
                     Thread.sleep(5000);
+
                 } catch (InterruptedException ex) {
-                    Logger.getLogger(Nodo.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(Nodo.class
+                            .getName()).log(Level.SEVERE, null, ex);
                 }
                 //Se dopo un determinato tempo il campo neighbour è ancora null vuol dire che non sono stato inserito nella rete quindi riprovo
                 if (n.getNeighbour() == null) {
                     System.out.println("RIPROVO CAUSA TIMEOUT");
                     answer = target.path("rest").path("nodes").path("nodi").request(MediaType.APPLICATION_JSON).get();
 
-                    nodesList = gson.fromJson(answer.readEntity(String.class), t);
+                    nodesList
+                            = gson.fromJson(answer.readEntity(String.class
+                            ), t);
                     if (!nodesList.containsKey(nodeInfo.getId())) {
                         System.out.println("IL VECCHIO NODO E' MORTO");
                         answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
