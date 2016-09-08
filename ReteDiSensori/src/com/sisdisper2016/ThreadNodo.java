@@ -97,13 +97,17 @@ public class ThreadNodo extends Thread {
 
                 if (nodo.isExiting()) {
                     System.out.println("ESCO DALLA RETE");
-                    esciRete(senderAddr, senderPort);
-
+                    if(temp.isEmpty()){
+                        esciRete(senderAddr, senderPort);
+                    }else{
+                        esciRete(temp.get(0).getAddress(), temp.get(0).getPort());
+                    }
                 }
 
                 Message messageOut = new Message("token", nodo.getAddress(), "" + nodo.getListeningPort(), gson.toJson(token));
                 nodo.inviaMessaggio(messageOut, neighbourData[0], neighbourData[1]);
                 if (nodo.isExiting()) {
+                    Thread.sleep(5000);
                     System.exit(0);
                 }
             }

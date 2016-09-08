@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
@@ -25,6 +24,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -48,6 +48,7 @@ public class Nodo {
     private String next;
     private String nodeType;
     private String id;
+    private String gatewayAddress;
     private String address;
     private NodoInfo nodoInfo;
     private int listeningPort;
@@ -60,10 +61,11 @@ public class Nodo {
     public Nodo() {
     }
 
-    public Nodo(String id, String nodeType, String address, String listeningPort) throws IOException {
+    public Nodo(String id, String nodeType, String listeningPort, String gatewayAddress) throws IOException {
         this.id = id;
         this.nodeType = nodeType;
-        this.address = address;
+        this.address = InetAddress.getLocalHost().getHostAddress();
+        this.gatewayAddress = gatewayAddress;
 
         try {
             this.listeningPort = Integer.parseInt(listeningPort);
@@ -105,7 +107,7 @@ public class Nodo {
             this.serverSocket = new ServerSocket(this.listeningPort);
         } catch (IOException ex) {
             System.out.println("PORTA GIA' IN USO");
-            this.serverSocket.close();
+            //this.serverSocket.close();
             System.exit(0);
         }
 
@@ -137,17 +139,18 @@ public class Nodo {
 
     public static void main(String[] args) throws IOException, InterruptedException {
         //Creo il nodo
-        Response answer;
-        ClientConfig config = new ClientConfig();
-        Client client = ClientBuilder.newClient(config);
-        WebTarget target = client.target(getBaseURI());
+
         Gson gson = new Gson();
         System.out.println("VALIDAZIONE INPUT");
-        if (!validateAddress(args[2], args[3])) {
+        if (!validateAddress(args[3].split(":")[0], args[3].split(":")[1])) {
             System.out.println("INDIRIZZO DI RETE NON VALIDO");
             System.exit(0);
         }
         Nodo n = new Nodo(args[0], args[1], args[2], args[3]);
+        Response answer = null;
+        ClientConfig config = new ClientConfig();
+        Client client = ClientBuilder.newClient(config);
+        WebTarget target = client.target(getBaseURI(n.getGatewayAddress()));
         System.out.println("ID NODO: " + n.getId());
         System.out.println("TIPOLOGIA NODO: " + n.getType());
         System.out.println("INDIRIZZO NODO: " + n.getAddress());
@@ -158,7 +161,13 @@ public class Nodo {
         n.SetConsole(console);
         ThreadServer threadNodoServer = new ThreadServer(n.getServerSocket(), n);
         threadNodoServer.start();
+        try{
         answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
+        }catch(ProcessingException e){
+            System.out.println("ERRORE NELLA CONNESSIONE AL GATEWAY");
+            System.exit(0);
+            
+        }
         registraNodo(n, answer);
 
     }
@@ -166,7 +175,7 @@ public class Nodo {
     public static void registraNodo(Nodo n, Response answer) throws IOException {
         ClientConfig config = new ClientConfig();
         Client client = ClientBuilder.newClient(config);
-        WebTarget target = client.target(getBaseURI());
+        WebTarget target = client.target(getBaseURI(n.getGatewayAddress()));
         Gson gson = new Gson();
         //ricevo dal gateway l'elenco dei nodi della rete
         try {
@@ -289,8 +298,12 @@ public class Nodo {
         return this.address;
     }
 
-    private static URI getBaseURI() {
-        return UriBuilder.fromUri("http://localhost:8084/Gateway").build();
+    public String getGatewayAddress() {
+        return this.gatewayAddress;
+    }
+
+    private static URI getBaseURI(String address) {
+        return UriBuilder.fromUri("http://" + address + "/Gateway").build();
     }
 
     public int getListeningPort() {

@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -18,6 +19,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -30,40 +32,52 @@ import org.glassfish.jersey.client.ClientConfig;
 public class GatewayClient {
 
     public static void main(String[] args) throws IOException {
-        ServerSocket serverSocket = null;
-        String address = args[0];
-        String port = args[1];
-        UserInfo userInfo = new UserInfo(args[0], args[1]);
+        Response answer = null;
+        WebTarget target = null;
+        ServerSocket serverSocket = new ServerSocket(0);;
+        String gatewayAddress = "";
+        String gatewayPort;
+        String userAddress = InetAddress.getLocalHost().getHostAddress();
+        String userPort = "" + serverSocket.getLocalPort();
+        UserInfo userInfo = new UserInfo(userAddress, userPort);
         boolean logged = false;
-        ClientConfig config = new ClientConfig();
-        Client client = ClientBuilder.newClient(config);
-        WebTarget target = client.target(getBaseURI());
-        Gson gson = new Gson();
+        boolean validate = false;
+
         BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
         System.out.println("LOGIN");
         while (!logged) {
 
             System.out.print("INSERISCI NOME UTENTE: ");
             String user = stdin.readLine();
+            System.out.print("INSERISCI INDIRIZZO GATEWAY: ");
+            gatewayAddress = stdin.readLine();
+            System.out.print("INSERISCI PORTA GATEWAY: ");
+            gatewayPort = stdin.readLine();
+            
+
             userInfo.setId(user);
-            Response answer = target.path("rest").path("users").path("login").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(userInfo), MediaType.APPLICATION_JSON));
-            if (answer.getStatus() == 202) {
-                System.out.println("LOGIN EFFETTUATO");
-                break;
-            } else {
-                System.out.println("NOME UTENTE GIA' IN USO SCEGLIERNE UN ALTRO");
+            ClientConfig config = new ClientConfig();
+            Client client = ClientBuilder.newClient(config);
+            target = client.target(getBaseURI(gatewayAddress + ":" + gatewayPort));
+            Gson gson = new Gson();
+            if (validateGatewayAddress(gatewayAddress, gatewayPort)) {
+                try {
+                    answer = target.path("rest").path("users").path("login").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(userInfo), MediaType.APPLICATION_JSON));
+                } catch (ProcessingException e) {
+                    System.out.println("ERRORE NELLA CONNESSIONE");
+                }
             }
 
-        }
-        try {
-            int portInt = Integer.parseInt(port);
-            serverSocket = new ServerSocket(portInt);
-        } catch (IOException ex) {
-            System.out.println("PORTA GIA' IN USO");
-            System.exit(0);
-        } catch (NumberFormatException e) {
-            System.out.println("PORTA NON VALIDA");
-            System.exit(0);
+            if (answer != null) {
+                if (answer.getStatus() == 202) {
+                    System.out.println("LOGIN EFFETTUATO");
+                    break;
+                } else {
+                    System.out.println("NOME UTENTE GIA' IN USO SCEGLIERNE UN ALTRO");
+                }
+
+            }
+
         }
         ThreadUserServer server = new ThreadUserServer(serverSocket);
         server.start();
@@ -88,13 +102,11 @@ public class GatewayClient {
                     String enterId = stdin.readLine();
                     System.out.print("TIPO: ");
                     String enterType = stdin.readLine();
-                    System.out.print("INDIRIZZO: ");
-                    String enterAddress = stdin.readLine();
                     System.out.print("PORTA: ");
                     String enterPort = stdin.readLine();
-                    if (validateCreationInput(enterType, enterAddress, enterPort)) {
-                        queryCreazioneNodo(target, enterId, enterType, enterAddress, enterPort);
-                    }else{
+                    if (validateCreationInput(enterType, gatewayAddress, enterPort)) {
+                        queryCreazioneNodo(target, enterId, enterType, gatewayAddress, enterPort);
+                    } else {
                         System.out.println("DATI NON VALIDI");
                     }
                     break;
@@ -174,16 +186,6 @@ public class GatewayClient {
             }
         } catch (NumberFormatException ex) {
             return false;
-        }
-        try {
-            InetAddress.getByName(address);
-
-        } catch (UnknownHostException e1) {
-            try {
-                InetAddress.getByAddress(address.getBytes());
-            } catch (UnknownHostException e2) {
-                return false;
-            }
         }
 
         return true;
@@ -308,9 +310,9 @@ public class GatewayClient {
             log = gson.fromJson(answer.readEntity(String.class), String.class);
         } else {
             log = gson.fromJson(answer.readEntity(String.class), String.class);
-           
+
         }
-         System.out.println(log);
+        System.out.println(log);
     }
 
     private static void logout(WebTarget target, UserInfo user) {
@@ -318,8 +320,36 @@ public class GatewayClient {
         Response answer = target.path("rest").path("users").path("logout").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(user), MediaType.APPLICATION_JSON));
     }
 
-    private static URI getBaseURI() {
-        return UriBuilder.fromUri("http://localhost:8084/Gateway").build();
+    private static URI getBaseURI(String address) {
+        return UriBuilder.fromUri("http://" + address + "/Gateway").build();
+    }
+
+    private static boolean validateGatewayAddress(String gatewayAddress, String gatewayPort) {
+        try {
+                InetAddress.getByName(gatewayAddress);
+
+            } catch (UnknownHostException e1) {
+                try {
+                    InetAddress.getByAddress(gatewayAddress.getBytes());
+                } catch (UnknownHostException e2) {
+                    System.out.println("INDIRIZZO GATEWAY NON VALIDO");
+                    return false;
+
+                }
+            }
+            try {
+                int portInt = Integer.parseInt(gatewayPort);
+                if (portInt <= 0 || portInt > 65535) {
+                    System.out.println("PORTA GATEWAY NON VALIDA");
+                    return false;
+
+                }
+            } catch (NumberFormatException ex) {
+                System.out.println("PORTA GATEWAY NON VALIDA");
+                return false;
+
+            }
+            return true;
     }
 
 }

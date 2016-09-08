@@ -75,7 +75,6 @@ public class NodesResource {
             if (nodes.nodiRegistrati().containsKey(nodo.getId())) {
 
                 return Response.status(Response.Status.NOT_ACCEPTABLE).build();
-                //return Response.ok(new UserInfo("OK")).build();
             } else {
 
                 nodes.registraNodo(nodo);
@@ -161,7 +160,7 @@ public class NodesResource {
                 nodes.nodiRegistratiClient().add(nodo.getId());
                 if(available(nodo.getAddress(),Integer.parseInt(nodo.getPort()))){
                 Process proc = Runtime.getRuntime().exec("java -jar D:\\Documenti\\NetBeansProjects\\ReteDiSensori\\dist\\ReteDiSensori.jar "
-                        + nodo.getId() + " " + nodo.getType() + " " + nodo.getAddress() + " " + nodo.getPort());
+                        + nodo.getId() + " " + nodo.getType() + " " + nodo.getPort() + " " + "localhost:8084");
                 
                 return Response.status(Response.Status.ACCEPTED).entity(gson.toJson("NODO IN CREAZIONE")).build();
                 }else{
@@ -649,13 +648,13 @@ public class NodesResource {
         } catch (NumberFormatException e) {
             return -1;
         }
-        if (ora < 0 || ora > 24) {
-            return timestamp;
-        }
-        if (min < 0 || min > 60) {
+        if (ora < 0 || ora >= 24) {
             return -1;
         }
-        if (sec < 0 || sec > 60) {
+        if (min < 0 || min >= 60) {
+            return -1;
+        }
+        if (sec < 0 || sec >= 60) {
             return -1;
         }
         String date = c.get(Calendar.DAY_OF_MONTH) + "-" + (c.get(Calendar.MONTH) + 1) + "-" + c.get(Calendar.YEAR) + " " + h + ":" + m + ":" + s;
