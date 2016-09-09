@@ -10,7 +10,8 @@ package com.sisdisper2016;
  * @author Tozio23
  */
 public class Message {
-
+    //Classe per la definizione di un messaggio
+    //Composta da header che descrive il tipo del messaggio dall'indirizzo e la porta del mittente e il corpo del messaggio
     private String header;
     private String senderAddr;
     private String senderPort;

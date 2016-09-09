@@ -18,7 +18,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.UriInfo;
 import javax.ws.rs.Consumes;
@@ -68,7 +67,7 @@ public class NodesResource {
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
 
-        //String[] nodoInfo = nodo.split("-");
+        //Sincronizzo sulla struttura dati dei nodi registrati e se non è presente procedo con la registrazione altrimenti rifiuto la richiesta
         synchronized (nodes.nodiRegistrati()) {
 
             if (nodes.nodiRegistrati().containsKey(nodo.getId())) {
@@ -77,6 +76,7 @@ public class NodesResource {
             } else {
                 System.out.println("REGISTRZIONE NODO: " + nodo.toString());
                 nodes.registraNodo(nodo);
+                //Sincronizzo sulla struttura dati dei nodi inseriti nella rete che se risulta vuota significa che sono il primo nodo e quindi effettuo immediatamente l'inserimento nella rete
                 synchronized (nodes.nodiInseriti()) {
                     if (nodes.nodiInseriti().isEmpty()) {
                         nodes.inserisciNodo(nodo);
@@ -84,6 +84,7 @@ public class NodesResource {
                         return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(new HashMap<String, NodoInfo>())).build();
                     }
                 }
+                //Altrimenti confermo la registrazione
                 System.out.println("NODI REGISTRATI: " + nodes.nodiRegistrati());
                 return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(nodes.nodiInseriti())).build();
             }
@@ -95,6 +96,7 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response postRegisterRetry(String nodoString) throws IOException {
+        //Chiamata resto per eseguire un nuovo tentativo di registrazione l'unica differenza con la registrazione regolare è che stavolta mi aspetto di trovare il nodo nella struttura dati
         nodes = Nodes.getInstance();
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
@@ -113,7 +115,7 @@ public class NodesResource {
                     if (nodes.nodiInseriti().isEmpty()) {
                         nodes.inserisciNodo(nodo);
                         broadcastUtenti(nodo, "nodeEnter");
-                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(new HashMap<String, NodoInfo>())).build();
+                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(new HashMap<>())).build();
                     }
                 }
                 System.out.println("NODI REGISTRATI: " + nodes.nodiRegistrati());
@@ -127,12 +129,13 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response postEnter(String nodoString) throws IOException {
+        //Chiamata rest per l'inserimento di un nodo nella rete
         nodes = Nodes.getInstance();
         users = Users.getInstance();
         HashMap<String, UserInfo> temp;
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
-        //String[] nodoInfo = nodo.split("-");
+        //Mi sincronizzo sulla struttura dati dei nodi inseriti
         synchronized (nodes.nodiInseriti()) {
             nodes.inserisciNodo(nodo);
             System.out.println("NODI INSERITI: " + nodes.nodiInseriti());
@@ -147,16 +150,19 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response postCreate(String nodoString) throws IOException {
+        //Chiamata REST per la creazione di un nuovo nodo da parte di un utente
         nodes = Nodes.getInstance();
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
-
+        //sincronizzo su una struttura dati che memorizza gli id dei nodi registrati
         synchronized (nodes.nodiRegistratiClient()) {
             if (nodes.nodiRegistratiClient().contains(nodo.getId())) {
                 return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("ID NODO GIA' PRESENTE")).build();
             } else {
 
                 nodes.nodiRegistratiClient().add(nodo.getId());
+                //Prima di avviare un nuovo processo mi assicuro che i dati per la creazione del nodo forniti dall'utente siano corretti e disponibili
+                //Così da avere garanzia al momento del lancio del processo che questo verrà correttamente inserito nella rete
                 if (available(nodo.getAddress(), Integer.parseInt(nodo.getPort()))) {
                     System.out.println("CREAZIONE NODO: " + nodo.toString());
                     Process proc = Runtime.getRuntime().exec("java -jar D:\\Documenti\\NetBeansProjects\\ReteDiSensori\\dist\\ReteDiSensori.jar "
@@ -164,6 +170,7 @@ public class NodesResource {
 
                     return Response.status(Response.Status.ACCEPTED).entity(gson.toJson("NODO IN CREAZIONE")).build();
                 } else {
+                    //Altrimenti notifico la non correttezza dei dati inseriti e libero l'id per essere riutilizzato
                     synchronized (nodes.nodiRegistratiClient()) {
                         nodes.nodiRegistratiClient().remove(nodo.getId());
                     }
@@ -187,9 +194,11 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response postDelete(String nodoString) throws IOException {
+        //Chiamata REST per l'eliminazione di un nodo da parte dell'utente
         nodes = Nodes.getInstance();
         Gson gson = new Gson();
         String nodoId = gson.fromJson(nodoString, String.class);
+        //Veirifico la presenza del nodo nella rete e in seguito gli invio un messaggio che lo porta nello stato di uscita
         synchronized (nodes.nodiInseriti()) {
             if (nodes.nodiInseriti().containsKey(nodoId)) {
                 NodoInfo nodo = nodes.nodiInseriti().get(nodoId);
@@ -213,12 +222,13 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response postExit(String nodoString) throws IOException {
+        //chiamata REST per l'uscita di un nodo dalla rete
         nodes = Nodes.getInstance();
         users = Users.getInstance();
         HashMap<String, UserInfo> temp;
         Gson gson = new Gson();
         NodoInfo nodo = gson.fromJson(nodoString, NodoInfo.class);
-        //String[] nodoInfo = nodo.split("-");
+        //Sincronizzo sulla struttura dati dei nodi inseriti e rimuovo il nodo uscente 
         synchronized (nodes.nodiInseriti()) {
             nodes.rimuoviNodo(nodo);
         }
@@ -228,9 +238,11 @@ public class NodesResource {
     }
 
     public void broadcastUtenti(NodoInfo nodo, String header) throws IOException {
+        //Metodo per l'invio di un messaggio a tutti gli utenti registrati al gateway 
         users = Users.getInstance();
         HashMap<String, UserInfo> temp;
         Gson gson = new Gson();
+        //Sincronizzo sulla struttura dati degli utenti e la copio
         if (!users.getUsers().isEmpty()) {
             synchronized (users.getUsers()) {
                 temp = new HashMap<>(users.getUsers());
@@ -254,11 +266,13 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response postToken(String tokenString) {
+        //Chiamata per la gestione del token
         accelerometerBuffer = AccelerometerBuffer.getInstance();
         lightBuffer = LightBuffer.getInstance();
         temperatureBuffer = TemperatureBuffer.getInstance();
         Gson gson = new Gson();
         Token token = gson.fromJson(tokenString, Token.class);
+        //Smisto le misurazioni presenti sul token in base alla loro tipologia sulla corretta struttura dati
         for (Measurement m : token.getBuffer()) {
             switch (m.getType()) {
 
@@ -287,6 +301,7 @@ public class NodesResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response clientQueryMeasurement() {
+        //Chiamata REST per ottenere tutte le misurazioni presenti sul gateway
         accelerometerBuffer = AccelerometerBuffer.getInstance();
         lightBuffer = LightBuffer.getInstance();
         temperatureBuffer = TemperatureBuffer.getInstance();
@@ -308,7 +323,7 @@ public class NodesResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response clientQueryNodes() {
-
+        //Chaiamata REST per ottenere i nodi attualmente collegati alla rete
         nodes = Nodes.getInstance();
         Gson gson = new Gson();
         synchronized (nodes.nodiInseriti()) {
@@ -321,7 +336,7 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response clientQueryNode(String id) {
-
+        //Chiamata REST per ottenere le informazioni di un nodo con un determinato ID
         nodes = Nodes.getInstance();
         Gson gson = new Gson();
         NodoInfo nodo;
@@ -341,6 +356,7 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response clientQueryLastID(String id) {
+        //Chiamata REST per ottenere l'ultima misurazione di uno specifico sensore
         accelerometerBuffer = AccelerometerBuffer.getInstance();
         lightBuffer = LightBuffer.getInstance();
         temperatureBuffer = TemperatureBuffer.getInstance();
@@ -353,6 +369,7 @@ public class NodesResource {
         NodoInfo nodo = nodes.nodiRegistrati().get(idString);
         if (nodo != null) {
             String type = nodo.getType();
+            //In base al tipo del sensore richiesto ottengo la lista delle misurazioni di quel sensore e ricavo l'ultima che per costruzione è l'ultima aggiunta alla lista
             switch (type) {
                 case "accelerometer":
                     synchronized (accelerometerBuffer.getBuffer()) {
@@ -403,6 +420,7 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response clientQueryTimeID(String message) {
+        //Chiamata REST per ottenere le misurazioni di uno specifico sensore in un arco di tempo
         accelerometerBuffer = AccelerometerBuffer.getInstance();
         lightBuffer = LightBuffer.getInstance();
         temperatureBuffer = TemperatureBuffer.getInstance();
@@ -432,6 +450,8 @@ public class NodesResource {
         if (timestamp1 == -1 || timestamp2 == -1 || timestamp2 < timestamp1) {
             return Response.status(Response.Status.NOT_ACCEPTABLE).entity(gson.toJson("INTERVALLO NON VALIDO")).build();
         }
+        //Dopo aver verificato la correttezza dei dati inseriti, in base al tipo del sensore richiesto ricavo tutte le misurazioni presenti che sono state effettuate
+        //nell'arco di tempo richiesto
         synchronized (nodes.nodiRegistrati()) {
             tempMap = nodes.nodiRegistrati();
 
@@ -521,6 +541,7 @@ public class NodesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response clientQueryTimeType(String message) {
+        //Chiamata REST per ottenere le misurazioni di tutti i sensori di un determinato tipo nell'arco temporale indicato
         accelerometerBuffer = AccelerometerBuffer.getInstance();
         lightBuffer = LightBuffer.getInstance();
         temperatureBuffer = TemperatureBuffer.getInstance();
@@ -624,7 +645,7 @@ public class NodesResource {
         }
 
     }
-
+    //Funzioni per la conversione da millisecondi a data e viceversa
     private long computeMidnightMilliseconds() {
         Calendar c = Calendar.getInstance();
         c.set(Calendar.HOUR_OF_DAY, 0);

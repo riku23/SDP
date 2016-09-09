@@ -33,14 +33,11 @@ public class ThreadUser extends Thread {
         try {
             
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader((estabSocket.getInputStream())));
-            DataOutputStream outToClient = new DataOutputStream(estabSocket.getOutputStream());
             clientSentence = inFromClient.readLine();
             Gson gson = new Gson();
             Message messageIn = gson.fromJson(clientSentence, Message.class);
 
             String header = messageIn.getHeader();
-            String senderAddr = messageIn.getSenderAddr();
-            String senderPort = messageIn.getSenderPort();
             String body = messageIn.getBody();
            if(header.equals("nodeEnter")){
                NodoInfo nodo = gson.fromJson(body, NodoInfo.class);

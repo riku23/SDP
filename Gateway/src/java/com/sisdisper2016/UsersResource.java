@@ -47,10 +47,11 @@ public class UsersResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response postLogin(String userString) {
+        //Chiamata REST per il login di un utente
         Gson gson = new Gson();
         UserInfo user = gson.fromJson(userString, UserInfo.class);
         
-        //String[] nodoInfo = nodo.split("-");
+        //Sincronizzo sulla struttura dati degli utenti registrati per aggiungerci l'utente se l'ID scelto non è già in uso
         synchronized (users.getUsers()) {
             if (users.getUsers().containsKey(user.getId())) {
 
@@ -70,9 +71,10 @@ public class UsersResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response postExit(String userString) {
+        //Chiamata REST per il logout dell'utente
         Gson gson = new Gson();
         UserInfo user = gson.fromJson(userString, UserInfo.class);
-        //String[] nodoInfo = nodo.split("-");
+        //Sincronizzo sulla struttura dati degli utenti e rimuovo l'id selezionato
         synchronized (users.getUsers()) {
             users.logout(user);
             System.out.println("LOGOUT UTENTE: " + user);
@@ -84,6 +86,7 @@ public class UsersResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response getUsers(){
+        //Chiamata REST che mi restituisce tutti gli utenti registrati sul gateway
         Gson gson = new Gson();
         synchronized(users.getUsers()){
             

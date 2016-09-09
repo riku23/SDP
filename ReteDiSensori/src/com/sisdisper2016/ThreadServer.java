@@ -27,7 +27,7 @@ public class ThreadServer extends Thread {
 
     @Override
     public void run() {
-
+        //Il thread si occupa di ricevere le richieste in arrivo sulla porta di ascolto e lanciare il relativo thread per il trattamento del messaggio
         while (true) {
             try {
                 Socket estabSocket = serverSocket.accept();

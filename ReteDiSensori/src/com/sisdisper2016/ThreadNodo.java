@@ -60,15 +60,17 @@ public class ThreadNodo extends Thread {
 
             List<NodoInfo> temp;
             Thread.sleep(2000);
+            //Seleziono le azioni da intraprendere dipendentemente all'header del messaggio
             if (header.equals("token")) {
 
                 System.out.println(nodo.getPending());
-
+                //Controllo se dei nodi hanno fatto richiesta di entrare nella rete in modo sincronizzato
                 synchronized (nodo.getPending()) {
                     temp = new ArrayList<>(nodo.getPending());
                     nodo.getPending().clear();
                 }
                 Thread.sleep(7000);
+                //Se sono presenti nodi nella lista pending mi occupo di farli entrare nella rete
                 if (!temp.isEmpty()) {
                     System.out.println("INSERISCO NODI");
                     for (int i = 0; i < temp.size(); i++) {
@@ -76,9 +78,9 @@ public class ThreadNodo extends Thread {
 
                     }
                 }
-
+                //Estraggo il token dal corpo del messaggio
                 Token token = gson.fromJson(body, Token.class);
-
+                //Se il mio buffer di misurazioni le aggiungo al token (se c'è spazio nel token) e le invio al gateway
                 if (!nodo.getBuffer().isEmpty()) {
                     if ((nodo.getBuffer().getSize() + token.getMisurazioni()) > 15) {
                         InviaMisurazioniToken(token);
@@ -89,12 +91,14 @@ public class ThreadNodo extends Thread {
                     token.addMisurazioni(l);
                     System.out.println("NUMERO MISURAZIONI TOKEN: " + token.getMisurazioni());
                 } else {
+                    //Passo avanti
                     System.out.println("BUFFER NODO VUOTO");
                 }
-
+                //Ricavo le informazioni (indirizzo e porta) del mio successivo nella rete
                 String[] neighbourData = nodo.getNeighbour().split("-");
                 System.out.println("PROSSIMO NODO: " + neighbourData[0] + " " + neighbourData[1]);
-
+                //Se mi trovo in stato di uscita setto il mio precedente o a chi mi ha mandato il messaggio oppure al primo nodo che ho servito nel caso avessi richieste di ingresso
+                //Questa distinzione è necessaria per gestire il caso in cui ho ricevuto il messaggio da me stesso (ero da solo) ma ho inserito nuovi nodi nella rete
                 if (nodo.isExiting()) {
                     System.out.println("ESCO DALLA RETE");
                     String prevAddr;
@@ -109,18 +113,21 @@ public class ThreadNodo extends Thread {
 
                     }
                     esciRete(prevAddr, prevPort);
+                    //Nel caso dello stato di uscita mando il messagio token al mio successivo segnando come mittente non me stesso ma il mio precedente
+                    //per gestire la situazione in cui più nodi chiedono di uscire in cascata
                     Message messageOut = new Message("token", prevAddr, "" + prevPort, gson.toJson(token));
                     nodo.inviaMessaggio(messageOut, neighbourData[0], neighbourData[1]);
                     //Thread.sleep(5000);
                     System.exit(0);
                 }
-
+                //Altrimenti invio il messaggio token al mio successivo segnando me stesso come mittente
                 Message messageOut = new Message("token", nodo.getAddress(), "" + nodo.getListeningPort(), gson.toJson(token));
                 nodo.inviaMessaggio(messageOut, neighbourData[0], neighbourData[1]);
             }
             
             
             if (header.equals("insert")) {
+                //Nel caso di messaggio di inserimento mi limito ad aggiungere in modo sincronizzato il nodo che ha mandato il messaggio all'elenco pending
                 NodoInfo nodoInfo = gson.fromJson(body, NodoInfo.class);
                 synchronized (nodo.getPending()) {
                     nodo.addPending(nodoInfo);
@@ -129,6 +136,7 @@ public class ThreadNodo extends Thread {
             }
 
             if (header.equals("changeNext")) {
+                //Nel caso di ricezione di cambio di successivo aggiorno il campo relativo al successivo e mando un messaggio di ACK al mittente per notificargli il corretto aggiornamento
                 System.out.println("CHANGE NEXT");
                 nodo.SetNeighbour(body);
                 Message message = new Message("ack", nodo.getAddress(), "" + nodo.getListeningPort(), "");
@@ -136,7 +144,7 @@ public class ThreadNodo extends Thread {
             }
 
             if (header.equals("ack")) {
-
+                //Ricevuto un messaggio di ack decremento di 1 il numero di ack che sto attendendo nel caso questo valga 0 libero la risorsa e notifico
                 System.out.println("ACK RICEVUTO");
                 synchronized (nodo.getAck()) {
                     nodo.getAck()[0]--;
@@ -150,6 +158,7 @@ public class ThreadNodo extends Thread {
             }
 
             if (header.equals("exit")) {
+                //La ricezione di un messaggio di uscita setta una variabile booleana dichiarata volatile (per garantirne la correttezza) a true portando il nodo in stato di uscita
                 nodo.setExiting(true);
 
             }
@@ -161,9 +170,11 @@ public class ThreadNodo extends Thread {
 
     public void esciRete(String prevAddr, String prevPort) throws IOException, InterruptedException {
         //System.out.println(prevAddr + "-" + prevPort);
+        //Verifico se il mio successivo ha lo stesso indirizzo e porta di me stesso condizione che mi dice se sono l'unico nodo nella rete
         if (!(nodo.getNeighbour()).equals(nodo.getAddress() + "-" + nodo.getListeningPort())) {
             System.out.println("non sono solo");
             synchronized (nodo.getAck()) {
+                //Se non sono da solo invio un messaggio di changeNext sincronizzandomi sugli ack e aspetto l'arrivo dei messaggi relativi e comunico l'uscita al gateway
                 Message message = new Message("changeNext", nodo.getAddress(), "" + nodo.getListeningPort(), nodo.getNeighbour());
                 nodo.inviaMessaggio(message, prevAddr, prevPort);
                 nodo.getAck()[0]++;
@@ -180,6 +191,7 @@ public class ThreadNodo extends Thread {
             }
 
         } else {
+            //Se sono solo devo solo occuparmi di comunicare al gateway la mia uscita e terminare l'esecuzione
             Response answer;
             ClientConfig config = new ClientConfig();
             Client client = ClientBuilder.newClient(config);
@@ -198,17 +210,19 @@ public class ThreadNodo extends Thread {
         Client client = ClientBuilder.newClient(config);
         WebTarget target = client.target(getBaseURI());
         Gson gson = new Gson();
+        //Comunico al gateway l'inserimento di un nuovo nodo
         answer = target.path("rest").path("nodes").path("enter").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(newNodo), MediaType.APPLICATION_JSON));
 
         String addr = newNodo.getAddress();
         String port = newNodo.getPort();
-
+        //mi sincronizzo sugli ack attendendo le risposte che mi garantiscono la buona formazione della rete
         synchronized (nodo.getAck()) {
             Message message = new Message("changeNext", nodo.getAddress(), "" + nodo.getListeningPort(), nodo.getNeighbour());
             nodo.inviaMessaggio(message, addr, port);
             nodo.getAck()[0]++;
             nodo.getAck().wait();
         }
+        //Aggiorno il valore del mio successivo
         nodo.SetNeighbour(addr + "-" + port);
 
     }

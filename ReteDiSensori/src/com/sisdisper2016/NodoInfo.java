@@ -12,7 +12,7 @@ import java.util.Date;
  * @author Tozio23
  */
 public class NodoInfo {
-
+    //classe per la definizione delle informazioni necessarie per identificare un nodo
     private String id;
     private String type;
     private Date uptime;

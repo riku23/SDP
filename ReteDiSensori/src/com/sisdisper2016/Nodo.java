@@ -60,7 +60,7 @@ public class Nodo {
     //private static MeasurementBuffer buffer;
     public Nodo() {
     }
-
+    //Costruttore nodo
     public Nodo(String id, String nodeType, String listeningPort, String gatewayAddress) throws IOException {
         this.id = id;
         this.nodeType = nodeType;
@@ -102,7 +102,7 @@ public class Nodo {
         this.ackCounter = new int[1];
 
         this.ackCounter[0] = 0;
-
+        //Controllo la disponibilià della porta selezionata
         try {
             this.serverSocket = new ServerSocket(this.listeningPort);
         } catch (IOException ex) {
@@ -113,7 +113,7 @@ public class Nodo {
 
         this.stdin = new BufferedReader(new InputStreamReader(System.in));
     }
-
+    //Verifica della correttezza e disponibilità dell'indirizzo del Gateway inserito in input
     private static boolean validateAddress(String address, String port) {
         try {
             int portInt = Integer.parseInt(port);
@@ -138,14 +138,15 @@ public class Nodo {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        //Creo il nodo
 
         Gson gson = new Gson();
         System.out.println("VALIDAZIONE INPUT");
+        //Validazione input
         if (!validateAddress(args[3].split(":")[0], args[3].split(":")[1])) {
             System.out.println("INDIRIZZO DI RETE NON VALIDO");
             System.exit(0);
         }
+        //Creo il nodo e definisco le variabili per le chiamate REST
         Nodo n = new Nodo(args[0], args[1], args[2], args[3]);
         Response answer = null;
         ClientConfig config = new ClientConfig();
@@ -161,6 +162,7 @@ public class Nodo {
         n.SetConsole(console);
         ThreadServer threadNodoServer = new ThreadServer(n.getServerSocket(), n);
         threadNodoServer.start();
+        //Effettuo la chiamata rest per la registrazione del nodo
         try {
             answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
         } catch (ProcessingException e) {
