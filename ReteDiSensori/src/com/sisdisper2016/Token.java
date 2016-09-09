@@ -17,11 +17,10 @@ import java.util.List;
 
 public class Token {
    private static Token instance = null;
-   private int misurazioni;
    private List<Measurement> tokenBuffer;
    
    private Token() {
-       tokenBuffer = new ArrayList<Measurement>();
+       tokenBuffer = new ArrayList<>();
 
       // Exists only to defeat instantiation.
    }

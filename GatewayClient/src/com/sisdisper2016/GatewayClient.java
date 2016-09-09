@@ -4,14 +4,11 @@ import com.google.common.reflect.TypeToken;
 import java.net.URI;
 import com.google.gson.Gson;
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -41,29 +38,28 @@ public class GatewayClient {
         String userPort = "" + serverSocket.getLocalPort();
         UserInfo userInfo = new UserInfo(userAddress, userPort);
         boolean logged = false;
-        boolean validate = false;
 
         BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
         System.out.println("LOGIN");
         while (!logged) {
-
+            //Inerisco l'id che voglio utilizzare per la registrazione e l'indirizzo del gateway a cui connettermi
             System.out.print("INSERISCI NOME UTENTE: ");
             String user = stdin.readLine();
             System.out.print("INSERISCI INDIRIZZO GATEWAY: ");
             gatewayAddress = stdin.readLine();
             System.out.print("INSERISCI PORTA GATEWAY: ");
             gatewayPort = stdin.readLine();
-            
 
             userInfo.setId(user);
             ClientConfig config = new ClientConfig();
             Client client = ClientBuilder.newClient(config);
             target = client.target(getBaseURI(gatewayAddress + ":" + gatewayPort));
             Gson gson = new Gson();
+            //Verifico la correttezza e la validità dell'indirizzo inserito
             if (validateGatewayAddress(gatewayAddress, gatewayPort)) {
                 try {
                     answer = target.path("rest").path("users").path("login").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(userInfo), MediaType.APPLICATION_JSON));
-                    
+
                 } catch (ProcessingException e) {
                     System.out.println("ERRORE NELLA CONNESSIONE");
                 }
@@ -74,6 +70,7 @@ public class GatewayClient {
                     System.out.println("LOGIN EFFETTUATO");
                     break;
                 } else {
+                    //Se l'userId è già in uso lo comunico all'utente
                     System.out.println("NOME UTENTE GIA' IN USO SCEGLIERNE UN ALTRO");
                 }
 
@@ -89,7 +86,9 @@ public class GatewayClient {
             switch (command) {
                 case "help":
                     System.out.println(
-                            "ultimaMisurazioneID - visualizza l'ultima misurazione di uno specifico nodo.\n"
+                              "ultimaMisurazioneID - visualizza l'ultima misurazione di uno specifico nodo.\n"
+                            + "misurazioniTempoID - visualizza le misurazioni massima, minima e la media delle misurazioni nell'intervallo di tempo desiderato di uno specifico nodo.\n"
+                            + "misurazioniTempoTipo - visualizza le misurazioni massima, minima e la media delle misurazioni nell'intervallo di tempo desiderato di una specifica tipologia di nodi.\n"
                             + "nodi - visualizza l'elenco dei nodi presenti nella rete.\n"
                             + "uscitaNodo - ferma e rimuole dalla rete il nodo con l'ID specificato\n"
                             + "logout - effettua il logout");
@@ -136,7 +135,7 @@ public class GatewayClient {
                     String s2 = stdin.readLine();
                     queryTimeID(target, nodeId + "-" + h1 + ":" + m1 + ":" + s1 + "-" + h2 + ":" + m2 + ":" + s2);
                     break;
-                case "misurazioniTempoType":
+                case "misurazioniTempoTipo":
                     System.out.print("TIPO: ");
 
                     String nodeType = stdin.readLine();
@@ -328,30 +327,30 @@ public class GatewayClient {
 
     private static boolean validateGatewayAddress(String gatewayAddress, String gatewayPort) {
         try {
-                InetAddress.getByName(gatewayAddress);
+            InetAddress.getByName(gatewayAddress);
 
-            } catch (UnknownHostException e1) {
-                try {
-                    InetAddress.getByAddress(gatewayAddress.getBytes());
-                } catch (UnknownHostException e2) {
-                    System.out.println("INDIRIZZO GATEWAY NON VALIDO");
-                    return false;
-
-                }
-            }
+        } catch (UnknownHostException e1) {
             try {
-                int portInt = Integer.parseInt(gatewayPort);
-                if (portInt <= 0 || portInt > 65535) {
-                    System.out.println("PORTA GATEWAY NON VALIDA");
-                    return false;
+                InetAddress.getByAddress(gatewayAddress.getBytes());
+            } catch (UnknownHostException e2) {
+                System.out.println("INDIRIZZO GATEWAY NON VALIDO");
+                return false;
 
-                }
-            } catch (NumberFormatException ex) {
+            }
+        }
+        try {
+            int portInt = Integer.parseInt(gatewayPort);
+            if (portInt <= 0 || portInt > 65535) {
                 System.out.println("PORTA GATEWAY NON VALIDA");
                 return false;
 
             }
-            return true;
+        } catch (NumberFormatException ex) {
+            System.out.println("PORTA GATEWAY NON VALIDA");
+            return false;
+
+        }
+        return true;
     }
 
 }
