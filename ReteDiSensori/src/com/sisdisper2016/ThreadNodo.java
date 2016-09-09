@@ -68,7 +68,7 @@ public class ThreadNodo extends Thread {
                     temp = new ArrayList<>(nodo.getPending());
                     nodo.getPending().clear();
                 }
-                Thread.sleep(5000);
+                Thread.sleep(7000);
                 if (!temp.isEmpty()) {
                     System.out.println("INSERISCO NODI");
                     for (int i = 0; i < temp.size(); i++) {
@@ -97,20 +97,29 @@ public class ThreadNodo extends Thread {
 
                 if (nodo.isExiting()) {
                     System.out.println("ESCO DALLA RETE");
-                    if(temp.isEmpty()){
-                        esciRete(senderAddr, senderPort);
-                    }else{
-                        esciRete(temp.get(0).getAddress(), temp.get(0).getPort());
+                    String prevAddr;
+                    String prevPort;
+                    if (temp.isEmpty()) {
+                        prevAddr = senderAddr;
+                        prevPort = senderPort;
+
+                    } else {
+                        prevAddr = temp.get(0).getAddress();
+                        prevPort = temp.get(0).getPort();
+
                     }
+                    esciRete(prevAddr, prevPort);
+                    Message messageOut = new Message("token", prevAddr, "" + prevPort, gson.toJson(token));
+                    nodo.inviaMessaggio(messageOut, neighbourData[0], neighbourData[1]);
+                    //Thread.sleep(5000);
+                    System.exit(0);
                 }
 
                 Message messageOut = new Message("token", nodo.getAddress(), "" + nodo.getListeningPort(), gson.toJson(token));
                 nodo.inviaMessaggio(messageOut, neighbourData[0], neighbourData[1]);
-                if (nodo.isExiting()) {
-                    Thread.sleep(5000);
-                    System.exit(0);
-                }
             }
+            
+            
             if (header.equals("insert")) {
                 NodoInfo nodoInfo = gson.fromJson(body, NodoInfo.class);
                 synchronized (nodo.getPending()) {

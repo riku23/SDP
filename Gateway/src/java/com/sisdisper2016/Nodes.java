@@ -39,6 +39,7 @@ public class Nodes {
 
     public  void registraNodo(NodoInfo nodo) {
          nodiRegistratiMap.put(nodo.getId(), nodo);
+         nodiRegistratiList.add(nodo.getId());
         
     }
 

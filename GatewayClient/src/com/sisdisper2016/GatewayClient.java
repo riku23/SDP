@@ -31,7 +31,7 @@ import org.glassfish.jersey.client.ClientConfig;
 
 public class GatewayClient {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         Response answer = null;
         WebTarget target = null;
         ServerSocket serverSocket = new ServerSocket(0);;
@@ -63,11 +63,12 @@ public class GatewayClient {
             if (validateGatewayAddress(gatewayAddress, gatewayPort)) {
                 try {
                     answer = target.path("rest").path("users").path("login").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(userInfo), MediaType.APPLICATION_JSON));
+                    
                 } catch (ProcessingException e) {
                     System.out.println("ERRORE NELLA CONNESSIONE");
                 }
             }
-
+            Thread.sleep(3000);
             if (answer != null) {
                 if (answer.getStatus() == 202) {
                     System.out.println("LOGIN EFFETTUATO");
@@ -293,19 +294,20 @@ public class GatewayClient {
         return media;
     }
 
-    private static void queryCreazioneNodo(WebTarget target, String id, String type, String address, String port) {
+    private static void queryCreazioneNodo(WebTarget target, String id, String type, String address, String port) throws InterruptedException {
         NodoInfo nodo = new NodoInfo(id, type, new Date(), address, port);
         Gson gson = new Gson();
         Response answer = target.path("rest").path("nodes").path("create").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo), MediaType.APPLICATION_JSON));
+        Thread.sleep(3000);
         String log = gson.fromJson(answer.readEntity(String.class), String.class);
         System.out.println(log);
     }
 
-    private static void queryUscitaNodo(WebTarget target, String id) throws IOException {
+    private static void queryUscitaNodo(WebTarget target, String id) throws IOException, InterruptedException {
         Gson gson = new Gson();
         String log;
         Response answer = target.path("rest").path("nodes").path("delete").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(id), MediaType.APPLICATION_JSON));
-
+        Thread.sleep(3000);
         if (answer.getStatus() == 202) {
             log = gson.fromJson(answer.readEntity(String.class), String.class);
         } else {

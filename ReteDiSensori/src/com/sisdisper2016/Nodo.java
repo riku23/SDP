@@ -161,12 +161,12 @@ public class Nodo {
         n.SetConsole(console);
         ThreadServer threadNodoServer = new ThreadServer(n.getServerSocket(), n);
         threadNodoServer.start();
-        try{
-        answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
-        }catch(ProcessingException e){
+        try {
+            answer = target.path("rest").path("nodes").path("register").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
+        } catch (ProcessingException e) {
             System.out.println("ERRORE NELLA CONNESSIONE AL GATEWAY");
             System.exit(0);
-            
+
         }
         registraNodo(n, answer);
 
@@ -229,6 +229,7 @@ public class Nodo {
                         }
                     } else {
                         System.out.println("DEVI ASPETTARE");
+
                     }
 
                 }
@@ -255,6 +256,7 @@ public class Nodo {
                         }
                     } else {
                         System.out.println("DEVI ASPETTARE");
+
                     }
 
                 }

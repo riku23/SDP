@@ -49,7 +49,7 @@ public class UsersResource {
     public Response postLogin(String userString) {
         Gson gson = new Gson();
         UserInfo user = gson.fromJson(userString, UserInfo.class);
-        System.out.println(user);
+        
         //String[] nodoInfo = nodo.split("-");
         synchronized (users.getUsers()) {
             if (users.getUsers().containsKey(user.getId())) {
@@ -59,7 +59,7 @@ public class UsersResource {
             } else {
 
                 users.registraUtente(user);
-
+                System.out.println("LOGIN UTENTE: " + user);
                 return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(users.getUsers())).build();
             }
         }
@@ -75,6 +75,7 @@ public class UsersResource {
         //String[] nodoInfo = nodo.split("-");
         synchronized (users.getUsers()) {
             users.logout(user);
+            System.out.println("LOGOUT UTENTE: " + user);
             return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(users.getUsers())).build();
         }
     }
