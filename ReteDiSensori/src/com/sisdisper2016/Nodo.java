@@ -59,8 +59,6 @@ public class Nodo {
     private ThreadConsole consoleThread;
 
     //private static MeasurementBuffer buffer;
-
-
     //Costruttore nodo
     public Nodo(String id, String nodeType, String listeningPort, String gatewayAddress) throws IOException {
         this.id = id;
@@ -239,11 +237,11 @@ public class Nodo {
                     }
 
                 }
-                synchronized(n.getRegister()){
-                n.getRegister().wait(5000);
+                synchronized (n.getRegister()) {
+                    n.getRegister().wait(5000);
                 }
-                if(n.getRegister()[0] == false){
-                //Se dopo un determinato tempo il campo neighbour è ancora null vuol dire che non sono stato inserito nella rete quindi riprovo
+                if (n.getRegister()[0] == false) {
+                    //Se dopo un determinato tempo il campo neighbour è ancora null vuol dire che non sono stato inserito nella rete quindi riprovo
                     System.out.println("RIPROVO CAUSA TIMEOUT");
                     answer = target.path("rest").path("nodes").path("nodi").request(MediaType.APPLICATION_JSON).get();
 
@@ -254,13 +252,12 @@ public class Nodo {
                         System.out.println("IL VECCHIO NODO E' MORTO");
                         answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
                         if (answer.getStatus() == 202) {
-                            registraNodo(n, answer);
+                        registraNodo(n, answer);
                         }
                     } else {
                         System.out.println("DEVI ASPETTARE");
-
+                       
                     }
-
                 }
 
             }
@@ -370,12 +367,12 @@ public class Nodo {
     public void SetConsole(ThreadConsole thread) {
         this.consoleThread = thread;
     }
-    
-    public void setRegister(boolean value){
+
+    public void setRegister(boolean value) {
         this.registerBool[0] = value;
     }
-    
-    public boolean[] getRegister(){
+
+    public boolean[] getRegister() {
         return this.registerBool;
     }
 

@@ -35,6 +35,7 @@ public class ThreadNodo extends Thread {
     private final Nodo nodo;
     private final Socket estabSocket;
     private String clientSentence;
+    private volatile boolean exit = false;
 
     //COSTRUTTORE
     public ThreadNodo(Socket socket, Nodo n) {
@@ -44,9 +45,9 @@ public class ThreadNodo extends Thread {
 
     @Override
     public void run() {
-
+        
         try {
-
+            Thread.sleep(5000);
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader((estabSocket.getInputStream())));
             DataOutputStream outToClient = new DataOutputStream(estabSocket.getOutputStream());
             clientSentence = inFromClient.readLine();
@@ -59,17 +60,20 @@ public class ThreadNodo extends Thread {
             String body = messageIn.getBody();
 
             List<NodoInfo> temp;
-            Thread.sleep(2000);
+
             //Seleziono le azioni da intraprendere dipendentemente all'header del messaggio
             if (header.equals("token")) {
 
-                System.out.println(nodo.getPending());
+                if(nodo.isExiting()){
+                    exit = true;
+                }
                 //Controllo se dei nodi hanno fatto richiesta di entrare nella rete in modo sincronizzato
                 synchronized (nodo.getPending()) {
+                    System.out.println(nodo.getPending());
                     temp = new ArrayList<>(nodo.getPending());
                     nodo.getPending().clear();
                 }
-                Thread.sleep(7000);
+
                 //Se sono presenti nodi nella lista pending mi occupo di farli entrare nella rete
                 if (!temp.isEmpty()) {
                     System.out.println("INSERISCO NODI");
@@ -99,7 +103,7 @@ public class ThreadNodo extends Thread {
                 System.out.println("PROSSIMO NODO: " + neighbourData[0] + " " + neighbourData[1]);
                 //Se mi trovo in stato di uscita setto il mio precedente o a chi mi ha mandato il messaggio oppure al primo nodo che ho servito nel caso avessi richieste di ingresso
                 //Questa distinzione è necessaria per gestire il caso in cui ho ricevuto il messaggio da me stesso (ero da solo) ma ho inserito nuovi nodi nella rete
-                if (nodo.isExiting()) {
+                if (exit) {
                     System.out.println("ESCO DALLA RETE");
                     String prevAddr;
                     String prevPort;
