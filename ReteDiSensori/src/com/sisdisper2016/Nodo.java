@@ -42,6 +42,7 @@ public class Nodo {
 
     private ServerSocket serverSocket;
     private int[] ackCounter;
+    private boolean[] registerBool;
     private volatile boolean exiting;
     private List<NodoInfo> pending;
     static Token token;
@@ -58,8 +59,8 @@ public class Nodo {
     private ThreadConsole consoleThread;
 
     //private static MeasurementBuffer buffer;
-    public Nodo() {
-    }
+
+
     //Costruttore nodo
     public Nodo(String id, String nodeType, String listeningPort, String gatewayAddress) throws IOException {
         this.id = id;
@@ -102,7 +103,9 @@ public class Nodo {
         this.ackCounter = new int[1];
 
         this.ackCounter[0] = 0;
-        //Controllo la disponibilià della porta selezionata
+        this.registerBool = new boolean[1];
+        this.registerBool[0] = false;
+//Controllo la disponibilià della porta selezionata
         try {
             this.serverSocket = new ServerSocket(this.listeningPort);
         } catch (IOException ex) {
@@ -113,6 +116,7 @@ public class Nodo {
 
         this.stdin = new BufferedReader(new InputStreamReader(System.in));
     }
+
     //Verifica della correttezza e disponibilità dell'indirizzo del Gateway inserito in input
     private static boolean validateAddress(String address, String port) {
         try {
@@ -174,7 +178,7 @@ public class Nodo {
 
     }
 
-    public static void registraNodo(Nodo n, Response answer) throws IOException {
+    public static void registraNodo(Nodo n, Response answer) throws IOException, InterruptedException {
         ClientConfig config = new ClientConfig();
         Client client = ClientBuilder.newClient(config);
         WebTarget target = client.target(getBaseURI(n.getGatewayAddress()));
@@ -235,15 +239,11 @@ public class Nodo {
                     }
 
                 }
-                try {
-                    Thread.sleep(5000);
-
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(Nodo.class
-                            .getName()).log(Level.SEVERE, null, ex);
+                synchronized(n.getRegister()){
+                n.getRegister().wait(5000);
                 }
+                if(n.getRegister()[0] == false){
                 //Se dopo un determinato tempo il campo neighbour è ancora null vuol dire che non sono stato inserito nella rete quindi riprovo
-                if (n.getNeighbour() == null) {
                     System.out.println("RIPROVO CAUSA TIMEOUT");
                     answer = target.path("rest").path("nodes").path("nodi").request(MediaType.APPLICATION_JSON).get();
 
@@ -369,6 +369,14 @@ public class Nodo {
 
     public void SetConsole(ThreadConsole thread) {
         this.consoleThread = thread;
+    }
+    
+    public void setRegister(boolean value){
+        this.registerBool[0] = value;
+    }
+    
+    public boolean[] getRegister(){
+        return this.registerBool;
     }
 
 }

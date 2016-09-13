@@ -139,6 +139,10 @@ public class ThreadNodo extends Thread {
                 //Nel caso di ricezione di cambio di successivo aggiorno il campo relativo al successivo e mando un messaggio di ACK al mittente per notificargli il corretto aggiornamento
                 System.out.println("CHANGE NEXT");
                 nodo.SetNeighbour(body);
+                synchronized(nodo.getRegister()){
+                nodo.setRegister(true);
+                nodo.getRegister().notify();
+                }
                 Message message = new Message("ack", nodo.getAddress(), "" + nodo.getListeningPort(), "");
                 nodo.inviaMessaggio(message, senderAddr, senderPort);
             }
