@@ -27,7 +27,7 @@ public class ThreadConsole extends Thread {
             try {
                 String command = nodo.getReader().readLine();
                 if (command.equals("exit")) {
-                    System.out.println("KILL ME");
+                    System.out.println("NODO IN ELIMINAZIONE");
                     nodo.setExiting(true);
                     nodo.getSimulator().stopMeGently();
                 }

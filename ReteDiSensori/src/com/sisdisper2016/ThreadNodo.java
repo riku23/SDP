@@ -47,7 +47,6 @@ public class ThreadNodo extends Thread {
         try {
             Thread.sleep(5000);
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader((estabSocket.getInputStream())));
-            DataOutputStream outToClient = new DataOutputStream(estabSocket.getOutputStream());
             clientSentence = inFromClient.readLine();
             Gson gson = new Gson();
             Message messageIn = gson.fromJson(clientSentence, Message.class);
@@ -141,9 +140,9 @@ public class ThreadNodo extends Thread {
                 //Nel caso di ricezione di cambio di successivo aggiorno il campo relativo al successivo e mando un messaggio di ACK al mittente per notificargli il corretto aggiornamento
                 System.out.println("CHANGE NEXT");
                 nodo.SetNeighbour(body);
-                synchronized (nodo.getRegister()) {
-                    nodo.setRegister(true);
-                    nodo.getRegister().notify();
+                synchronized (nodo.getConnected()) {
+                    nodo.setConnected(true);
+                    nodo.getConnected().notify();
                 }
                 Message message = new Message("ack", nodo.getAddress(), "" + nodo.getListeningPort(), "");
                 nodo.inviaMessaggio(message, senderAddr, senderPort);
