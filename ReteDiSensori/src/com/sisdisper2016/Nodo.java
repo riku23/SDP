@@ -181,14 +181,8 @@ public class Nodo {
         Client client = ClientBuilder.newClient(config);
         WebTarget target = client.target(getBaseURI(n.getGatewayAddress()));
         Gson gson = new Gson();
+        Message message = null;
         //ricevo dal gateway l'elenco dei nodi della rete
-        try {
-            Thread.sleep(5000);
-
-        } catch (InterruptedException ex) {
-            Logger.getLogger(Nodo.class
-                    .getName()).log(Level.SEVERE, null, ex);
-        }
         if (answer.getStatus() == 202) {
             Type t = new TypeToken<HashMap<String, NodoInfo>>() {
             }.getType();
@@ -197,13 +191,7 @@ public class Nodo {
             System.out.println(nodesList);
             //Se sono il primo nodo ad entrare nella rete mi occupo di creare il token e lanciarlo per la prima volta
             if (nodesList.isEmpty()) {
-                n.SetNeighbour(n.getAddress() + "-" + n.getListeningPort());
-                System.out.println("CREO IL TOKEN");
-                token = Token.getInstance();
-                String tokenString = gson.toJson(token);
-                String[] neighbourData = n.getNeighbour().split("-");
-                Message message = new Message("token", n.getAddress(), "" + n.getListeningPort(), tokenString);
-                n.inviaMessaggio(message, neighbourData[0], neighbourData[1]);
+                initRete(n);
             } else {
                 //Seleziono un nodo a caso tra quelli inseriti nella rete e lo contatto per essere inserito nella rete
                 List<String> keysAsArray = new ArrayList<>(nodesList.keySet());
@@ -214,52 +202,68 @@ public class Nodo {
 
                 try {
                     //Invio il messaggio di inserimento al nodo scelto
-                    Message message = new Message("insert", n.getAddress(), "" + n.getListeningPort(), nodoInfoString);
+                    message = new Message("insert", n.getAddress(), "" + n.getListeningPort(), nodoInfoString);
                     n.inviaMessaggio(message, nodeInfo.getAddress(), nodeInfo.getPort());
 
                 } catch (IOException e) {
                     //Catturo l'eccezione ConnectionRefused e riprovo a connettermi alla rete
                     System.out.println("RIPROVO CAUSA ERRORE");
-                    answer = target.path("rest").path("nodes").path("nodi").request(MediaType.APPLICATION_JSON).get();
+                    answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
 
                     nodesList
                             = gson.fromJson(answer.readEntity(String.class
                             ), t);
-                    if (!nodesList.containsKey(nodeInfo.getId())) {
-                        System.out.println("IL VECCHIO NODO E' MORTO");
-                        answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
-                        if (answer.getStatus() == 202) {
-                            registraNodo(n, answer);
-                        }
-                    } else {
-                        System.out.println("DEVI ASPETTARE");
+                    if (nodesList.isEmpty()) {
+                        initRete(n);
 
+                    } else {
+
+                        keysAsArray = new ArrayList<>(nodesList.keySet());
+                        System.out.println(keysAsArray);
+                        Random r2 = new Random();
+                        System.out.println(r.nextInt(keysAsArray.size()));
+                        nodeInfo = (NodoInfo) nodesList.get(keysAsArray.get(r2.nextInt(keysAsArray.size())));
+                        System.out.println(nodeInfo);
+                        nodoInfoString = gson.toJson(n.getNodoInfo());
+                        message = new Message("insert", n.getAddress(), "" + n.getListeningPort(), nodoInfoString);
+                        n.inviaMessaggio(message, nodeInfo.getAddress(), nodeInfo.getPort());
                     }
 
                 }
-                synchronized (n.getRegister()) {
-                    n.getRegister().wait(5000);
-                }
-                if (n.getRegister()[0] == false) {
-                    //Se dopo un determinato tempo il campo neighbour è ancora null vuol dire che non sono stato inserito nella rete quindi riprovo
-                    System.out.println("RIPROVO CAUSA TIMEOUT");
-                    answer = target.path("rest").path("nodes").path("nodi").request(MediaType.APPLICATION_JSON).get();
-
-                    nodesList
-                            = gson.fromJson(answer.readEntity(String.class
-                            ), t);
-                    if (!nodesList.containsKey(nodeInfo.getId())) {
-                        System.out.println("IL VECCHIO NODO E' MORTO");
-                        answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
-                        if (answer.getStatus() == 202) {
-                        registraNodo(n, answer);
-                        }
-                    } else {
-                        System.out.println("DEVI ASPETTARE");
-                       
+                while (true) {
+                    synchronized (n.getRegister()) {
+                        n.getRegister().wait(5000);
                     }
-                }
+                    if (n.getRegister()[0] == false) {
+                        //Se dopo un determinato tempo il campo neighbour è ancora null vuol dire che non sono stato inserito nella rete quindi riprovo
+                        System.out.println("RIPROVO CAUSA TIMEOUT");
+                        answer = target.path("rest").path("nodes").path("retry").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(n.getNodoInfo()), MediaType.APPLICATION_JSON));
 
+                        nodesList
+                                = gson.fromJson(answer.readEntity(String.class
+                                ), t);
+
+                        if (!nodesList.containsKey(nodeInfo.getId())) {
+                            System.out.println("IL VECCHIO NODO E' MORTO");
+                            if (nodesList.isEmpty()) {
+                                initRete(n);
+                                break;
+                            } else {
+
+                                keysAsArray = new ArrayList<>(nodesList.keySet());
+                                System.out.println(keysAsArray);
+                                Random r2 = new Random();
+                                System.out.println(r.nextInt(keysAsArray.size()));
+                                nodeInfo = (NodoInfo) nodesList.get(keysAsArray.get(r2.nextInt(keysAsArray.size())));
+                                System.out.println(nodeInfo);
+                                nodoInfoString = gson.toJson(n.getNodoInfo());
+                                message = new Message("insert", n.getAddress(), "" + n.getListeningPort(), nodoInfoString);
+                                n.inviaMessaggio(message, nodeInfo.getAddress(), nodeInfo.getPort());
+                            }
+                        }
+                    }
+
+                }
             }
 
         } else {
@@ -277,6 +281,17 @@ public class Nodo {
         DataOutputStream outToServer = new DataOutputStream((clientSocket.getOutputStream()));
         outToServer.writeBytes(messageString + '\n');
         clientSocket.close();
+    }
+
+    public static void initRete(Nodo n) throws IOException {
+        Gson gson = new Gson();
+        n.SetNeighbour(n.getAddress() + "-" + n.getListeningPort());
+        System.out.println("CREO IL TOKEN");
+        token = Token.getInstance();
+        String tokenString = gson.toJson(token);
+        String[] neighbourData = n.getNeighbour().split("-");
+        Message message = new Message("token", n.getAddress(), "" + n.getListeningPort(), tokenString);
+        n.inviaMessaggio(message, neighbourData[0], neighbourData[1]);
     }
 
     public NodoInfo getNodoInfo() {

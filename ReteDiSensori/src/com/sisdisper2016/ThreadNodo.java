@@ -31,11 +31,9 @@ import org.glassfish.jersey.client.ClientConfig;
  */
 public class ThreadNodo extends Thread {
 
-    private boolean stopped = false;
     private final Nodo nodo;
     private final Socket estabSocket;
     private String clientSentence;
-    private volatile boolean exit = false;
 
     //COSTRUTTORE
     public ThreadNodo(Socket socket, Nodo n) {
@@ -45,7 +43,7 @@ public class ThreadNodo extends Thread {
 
     @Override
     public void run() {
-        
+
         try {
             Thread.sleep(5000);
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader((estabSocket.getInputStream())));
@@ -64,9 +62,6 @@ public class ThreadNodo extends Thread {
             //Seleziono le azioni da intraprendere dipendentemente all'header del messaggio
             if (header.equals("token")) {
 
-                if(nodo.isExiting()){
-                    exit = true;
-                }
                 //Controllo se dei nodi hanno fatto richiesta di entrare nella rete in modo sincronizzato
                 synchronized (nodo.getPending()) {
                     System.out.println(nodo.getPending());
@@ -103,7 +98,7 @@ public class ThreadNodo extends Thread {
                 System.out.println("PROSSIMO NODO: " + neighbourData[0] + " " + neighbourData[1]);
                 //Se mi trovo in stato di uscita setto il mio precedente o a chi mi ha mandato il messaggio oppure al primo nodo che ho servito nel caso avessi richieste di ingresso
                 //Questa distinzione è necessaria per gestire il caso in cui ho ricevuto il messaggio da me stesso (ero da solo) ma ho inserito nuovi nodi nella rete
-                if (exit) {
+                if (nodo.isExiting()) {
                     System.out.println("ESCO DALLA RETE");
                     String prevAddr;
                     String prevPort;
@@ -111,10 +106,12 @@ public class ThreadNodo extends Thread {
                         prevAddr = senderAddr;
                         prevPort = senderPort;
 
-                    } else {
+                    } else if (senderAddr.equals(nodo.getAddress()) && senderPort.equals(""+nodo.getListeningPort())) {
                         prevAddr = temp.get(0).getAddress();
                         prevPort = temp.get(0).getPort();
-
+                    } else {
+                        prevAddr = senderAddr;
+                        prevPort = senderPort;
                     }
                     esciRete(prevAddr, prevPort);
                     //Nel caso dello stato di uscita mando il messagio token al mio successivo segnando come mittente non me stesso ma il mio precedente
@@ -128,13 +125,14 @@ public class ThreadNodo extends Thread {
                 Message messageOut = new Message("token", nodo.getAddress(), "" + nodo.getListeningPort(), gson.toJson(token));
                 nodo.inviaMessaggio(messageOut, neighbourData[0], neighbourData[1]);
             }
-            
-            
+
             if (header.equals("insert")) {
                 //Nel caso di messaggio di inserimento mi limito ad aggiungere in modo sincronizzato il nodo che ha mandato il messaggio all'elenco pending
                 NodoInfo nodoInfo = gson.fromJson(body, NodoInfo.class);
                 synchronized (nodo.getPending()) {
-                    nodo.addPending(nodoInfo);
+                    if (!nodo.getPending().contains(nodoInfo)) {
+                        nodo.addPending(nodoInfo);
+                    }
                 }
 
             }
@@ -143,9 +141,9 @@ public class ThreadNodo extends Thread {
                 //Nel caso di ricezione di cambio di successivo aggiorno il campo relativo al successivo e mando un messaggio di ACK al mittente per notificargli il corretto aggiornamento
                 System.out.println("CHANGE NEXT");
                 nodo.SetNeighbour(body);
-                synchronized(nodo.getRegister()){
-                nodo.setRegister(true);
-                nodo.getRegister().notify();
+                synchronized (nodo.getRegister()) {
+                    nodo.setRegister(true);
+                    nodo.getRegister().notify();
                 }
                 Message message = new Message("ack", nodo.getAddress(), "" + nodo.getListeningPort(), "");
                 nodo.inviaMessaggio(message, senderAddr, senderPort);

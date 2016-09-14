@@ -115,7 +115,7 @@ public class NodesResource {
                     if (nodes.nodiInseriti().isEmpty()) {
                         nodes.inserisciNodo(nodo);
                         broadcastUtenti(nodo, "nodeEnter");
-                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(new HashMap<>())).build();
+                        return Response.status(Response.Status.ACCEPTED).entity(gson.toJson(new HashMap<String, NodoInfo>())).build();
                     }
                 }
                 System.out.println("NODI REGISTRATI: " + nodes.nodiRegistrati());
