@@ -45,7 +45,7 @@ public class ThreadNodo extends Thread {
     public void run() {
 
         try {
-            Thread.sleep(5000);
+            Thread.sleep(3000);
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader((estabSocket.getInputStream())));
             clientSentence = inFromClient.readLine();
             Gson gson = new Gson();
@@ -177,7 +177,7 @@ public class ThreadNodo extends Thread {
         //System.out.println(prevAddr + "-" + prevPort);
         //Verifico se il mio successivo ha lo stesso indirizzo e porta di me stesso condizione che mi dice se sono l'unico nodo nella rete
         if (!(nodo.getNeighbour()).equals(nodo.getAddress() + "-" + nodo.getListeningPort())) {
-            System.out.println("non sono solo");
+            System.out.println("ALTRI NODI PRESENTI NELLA RETE");
             synchronized (nodo.getAck()) {
                 //Se non sono da solo invio un messaggio di changeNext sincronizzandomi sugli ack e aspetto l'arrivo dei messaggi relativi e comunico l'uscita al gateway
                 Message message = new Message("changeNext", nodo.getAddress(), "" + nodo.getListeningPort(), nodo.getNeighbour());
@@ -197,6 +197,7 @@ public class ThreadNodo extends Thread {
 
         } else {
             //Se sono solo devo solo occuparmi di comunicare al gateway la mia uscita e terminare l'esecuzione
+            System.out.println("UNICO NODO PRESENTE NELLA RETE");
             Response answer;
             ClientConfig config = new ClientConfig();
             Client client = ClientBuilder.newClient(config);

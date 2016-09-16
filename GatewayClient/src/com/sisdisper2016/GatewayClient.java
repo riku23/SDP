@@ -56,7 +56,7 @@ public class GatewayClient {
             target = client.target(getBaseURI(gatewayAddress + ":" + gatewayPort));
             Gson gson = new Gson();
             //Verifico la correttezza e la validità dell'indirizzo inserito
-            if (validateGatewayAddress(gatewayAddress, gatewayPort)) {
+            if (validateLogin(user, gatewayAddress, gatewayPort)) {
                 try {
                     answer = target.path("rest").path("users").path("login").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(userInfo), MediaType.APPLICATION_JSON));
 
@@ -64,7 +64,7 @@ public class GatewayClient {
                     System.out.println("ERRORE NELLA CONNESSIONE");
                 }
             }
-            Thread.sleep(3000);
+            //Thread.sleep(3000);
             if (answer != null) {
                 if (answer.getStatus() == 202) {
                     System.out.println("LOGIN EFFETTUATO");
@@ -86,7 +86,7 @@ public class GatewayClient {
             switch (command) {
                 case "help":
                     System.out.println(
-                              "ultimaMisurazioneID - visualizza l'ultima misurazione di uno specifico nodo.\n"
+                            "ultimaMisurazioneID - visualizza l'ultima misurazione di uno specifico nodo.\n"
                             + "misurazioniTempoID - visualizza le misurazioni massima, minima e la media delle misurazioni nell'intervallo di tempo desiderato di uno specifico nodo.\n"
                             + "misurazioniTempoTipo - visualizza le misurazioni massima, minima e la media delle misurazioni nell'intervallo di tempo desiderato di una specifica tipologia di nodi.\n"
                             + "nodi - visualizza l'elenco dei nodi presenti nella rete.\n"
@@ -104,7 +104,7 @@ public class GatewayClient {
                     String enterType = stdin.readLine();
                     System.out.print("PORTA: ");
                     String enterPort = stdin.readLine();
-                    if (validateCreationInput(enterType, gatewayAddress, enterPort)) {
+                    if (validateCreationInput(enterId,enterType, gatewayAddress, enterPort)) {
                         queryCreazioneNodo(target, enterId, enterType, gatewayAddress, enterPort);
                     } else {
                         System.out.println("DATI NON VALIDI");
@@ -122,17 +122,35 @@ public class GatewayClient {
                     System.out.println("TEMPO T1:");
                     System.out.print("ORA: ");
                     String h1 = stdin.readLine();
+                    if (h1.equals("")) {
+                        h1 = "0";
+                    }
                     System.out.print("MINUTI: ");
                     String m1 = stdin.readLine();
+                    if (m1.equals("")) {
+                        m1 = "0";
+                    }
                     System.out.print("SECONDI: ");
                     String s1 = stdin.readLine();
+                    if (s1.equals("")) {
+                        s1 = "0";
+                    }
                     System.out.println("TEMPO T2:");
                     System.out.print("ORA: ");
                     String h2 = stdin.readLine();
+                    if (h2.equals("")) {
+                        h2 = "0";
+                    }
                     System.out.print("MINUTI: ");
                     String m2 = stdin.readLine();
+                    if (m2.equals("")) {
+                        m2 = "0";
+                    }
                     System.out.print("SECONDI: ");
                     String s2 = stdin.readLine();
+                    if (s2.equals("")) {
+                        s2 = "0";
+                    }
                     queryTimeID(target, nodeId + "-" + h1 + ":" + m1 + ":" + s1 + "-" + h2 + ":" + m2 + ":" + s2);
                     break;
                 case "misurazioniTempoTipo":
@@ -142,17 +160,35 @@ public class GatewayClient {
                     System.out.println("TEMPO T1:");
                     System.out.print("ORA: ");
                     h1 = stdin.readLine();
+                    if (h1.equals("")) {
+                        h1 = "0";
+                    }
                     System.out.print("MINUTI: ");
                     m1 = stdin.readLine();
+                    if (m1.equals("")) {
+                        m1 = "0";
+                    }
                     System.out.print("SECONDI: ");
                     s1 = stdin.readLine();
+                    if (s1.equals("")) {
+                        s1 = "0";
+                    }
                     System.out.println("TEMPO T2:");
                     System.out.print("ORA: ");
                     h2 = stdin.readLine();
+                    if (h2.equals("")) {
+                        h2 = "0";
+                    }
                     System.out.print("MINUTI: ");
                     m2 = stdin.readLine();
+                    if (m2.equals("")) {
+                        m2 = "0";
+                    }
                     System.out.print("SECONDI: ");
                     s2 = stdin.readLine();
+                    if (s2.equals("")) {
+                        s2 = "0";
+                    }
                     queryTimeType(target, nodeType + "-" + h1 + ":" + m1 + ":" + s1 + "-" + h2 + ":" + m2 + ":" + s2);
                     break;
                 case "ultimaMisurazioneID":
@@ -175,7 +211,10 @@ public class GatewayClient {
 
     }
 
-    private static boolean validateCreationInput(String type, String address, String port) {
+    private static boolean validateCreationInput(String id, String type, String address, String port) {
+        if(id.equals("")){
+            return false;
+        }
         if (!type.equals("accelerometer") && !type.equals("light") && !type.equals("temperature")) {
             return false;
         }
@@ -297,7 +336,7 @@ public class GatewayClient {
         NodoInfo nodo = new NodoInfo(id, type, new Date(), address, port);
         Gson gson = new Gson();
         Response answer = target.path("rest").path("nodes").path("create").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(nodo), MediaType.APPLICATION_JSON));
-        Thread.sleep(3000);
+        //Thread.sleep(3000);
         String log = gson.fromJson(answer.readEntity(String.class), String.class);
         System.out.println(log);
     }
@@ -306,7 +345,7 @@ public class GatewayClient {
         Gson gson = new Gson();
         String log;
         Response answer = target.path("rest").path("nodes").path("delete").request(MediaType.APPLICATION_JSON).post(Entity.entity(gson.toJson(id), MediaType.APPLICATION_JSON));
-        Thread.sleep(3000);
+        //Thread.sleep(3000);
         if (answer.getStatus() == 202) {
             log = gson.fromJson(answer.readEntity(String.class), String.class);
         } else {
@@ -325,7 +364,11 @@ public class GatewayClient {
         return UriBuilder.fromUri("http://" + address + "/Gateway").build();
     }
 
-    private static boolean validateGatewayAddress(String gatewayAddress, String gatewayPort) {
+    private static boolean validateLogin(String id,String gatewayAddress, String gatewayPort) {
+        if(id.equals("")){
+            System.out.println("USER ID NON VALIDO");
+            return false;
+        }
         try {
             InetAddress.getByName(gatewayAddress);
 
